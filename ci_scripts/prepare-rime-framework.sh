@@ -91,8 +91,8 @@ if not any((work / 'notices' / 'third-party-notices').rglob('*.txt')):
 PY
 # On Mac, also check the actual archive architecture with Apple's lipo.
 if [ "$(uname -s)" = Darwin ]; then
-  xcrun lipo -verify_arch arm64 "$work/framework/librime-static.xcframework/ios-arm64/librime.a"
-  xcrun lipo -verify_arch arm64 x86_64 "$work/framework/librime-static.xcframework/ios-arm64_x86_64-simulator/librime.a"
+  xcrun lipo "$work/framework/librime-static.xcframework/ios-arm64/librime.a" -verify_arch arm64
+  xcrun lipo "$work/framework/librime-static.xcframework/ios-arm64_x86_64-simulator/librime.a" -verify_arch arm64 x86_64
 fi
 mkdir -p "$root/Frameworks"
 rm -rf "$root/Frameworks/librime-static.xcframework" "$root/Frameworks/CI-licenses"
