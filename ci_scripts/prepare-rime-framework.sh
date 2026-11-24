@@ -99,5 +99,6 @@ rm -rf "$root/Frameworks/librime-static.xcframework" "$root/Frameworks/CI-licens
 cp -R "$work/framework/librime-static.xcframework" "$root/Frameworks/librime-static.xcframework"
 mkdir -p "$root/Frameworks/CI-licenses/librime-xcframework"
 cp "$work/LICENSE.txt" "$work/THIRD_PARTY_NOTICES.md" "$root/Frameworks/CI-licenses/librime-xcframework/"
+cp "$work/third-party-notices.zip" "$root/Frameworks/CI-licenses/librime-xcframework/"
 cp -R "$work/notices/third-party-notices" "$root/Frameworks/CI-licenses/librime-xcframework/"
 echo 'Pinned framework and license notices prepared. Xcode linkage and runtime behavior still require verification.'
