@@ -33,18 +33,8 @@
 	</array>
 	<key>ITSAppUsesNonExemptEncryption</key>
 	<false/>
-	<key>NSUbiquitousContainers</key>
-	<dict>
-		<key>iCloud.dev.fuxiao.app.hamsterapp</key>
-		<dict>
-			<key>NSUbiquitousContainerIsDocumentScopePublic</key>
-			<true/>
-			<key>NSUbiquitousContainerName</key>
-			<string>Hamster</string>
-			<key>NSUbiquitousContainerSupportedFolderLevels</key>
-			<string>Any</string>
-		</dict>
-	</dict>
+	<key>HamsterGitCommit</key>
+	<string>$(HAMSTER_GIT_COMMIT)</string>
 	<key>UIApplicationSceneManifest</key>
 	<dict>
 		<key>UIApplicationSupportsMultipleScenes</key>
@@ -63,8 +53,6 @@
 		</dict>
 	</dict>
 	<key>UIFileSharingEnabled</key>
-	<true/>
-	<key>UIRequiresPersistentWiFi</key>
 	<true/>
 	<key>rimeVersion</key>
 	<string>1.9.0</string>

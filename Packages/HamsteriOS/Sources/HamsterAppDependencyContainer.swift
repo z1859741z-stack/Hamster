@@ -186,20 +186,11 @@ open class HamsterAppDependencyContainer {
 extension HamsterAppDependencyContainer {
   func makeZipDocumentPickerViewController() -> UIDocumentPickerViewController {
     let vc = UIDocumentPickerViewController(forOpeningContentTypes: [.zip])
-    if let iCloudURL = FileManager.default.url(forUbiquityContainerIdentifier: nil)?.appendingPathComponent("Documents") {
-      vc.directoryURL = iCloudURL
-    } else {
-      vc.directoryURL = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
-    }
+    vc.directoryURL = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
     return vc
   }
 }
 
-extension HamsterAppDependencyContainer: UploadInputSchemaViewModelFactory {
-  func makeUploadInputSchemaViewModel() -> UploadInputSchemaViewModel {
-    return UploadInputSchemaViewModel()
-  }
-}
 
 extension HamsterAppDependencyContainer: FinderViewModelFactory {
   func makeFinderViewModel() -> FinderViewModel {
@@ -252,11 +243,6 @@ extension HamsterAppDependencyContainer: FileBrowserViewModelFactory {
   }
 }
 
-extension HamsterAppDependencyContainer: AppleCloudViewModelFactory {
-  func makeAppleCloudViewModel() -> AppleCloudViewModel {
-    return AppleCloudViewModel(settingsViewModel: settingsViewModel)
-  }
-}
 
 extension HamsterAppDependencyContainer: AboutViewModelFactory {
   func makeAboutViewModel() -> AboutViewModel {
@@ -295,12 +281,6 @@ extension HamsterAppDependencyContainer: SubViewControllerFactory {
     return inputSchemaViewController
   }
 
-  func makeUploadInputSchemaViewController() -> UploadInputSchemaViewController {
-    let uploadInputSchemaViewController = UploadInputSchemaViewController(
-      uploadInputSchemaViewModelFactory: self
-    )
-    return uploadInputSchemaViewController
-  }
 
   func makeFinderViewController() -> FinderViewController {
     let finderViewController = FinderViewController(finderViewModelFactory: self, fileBrowserViewModelFactory: self)
@@ -323,10 +303,6 @@ extension HamsterAppDependencyContainer: SubViewControllerFactory {
     KeyboardFeedbackViewController(keyboardFeedbackViewModelFactory: self)
   }
 
-  func makeAppleCloudViewController() -> AppleCloudViewController {
-    let iCloudViewController = AppleCloudViewController(appleCloudViewModelFactory: self)
-    return iCloudViewController
-  }
 
   func makeRimeViewController() -> RimeViewController {
     let rimeViewController = RimeViewController(rimeViewModel: rimeViewModel)

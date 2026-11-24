@@ -34,15 +34,6 @@ public class SettingsViewModel: ObservableObject {
     }
   }
 
-  public var enableAppleCloud: Bool {
-    get {
-      HamsterAppDependencyContainer.shared.configuration.general?.enableAppleCloud ?? false
-    }
-    set {
-      HamsterAppDependencyContainer.shared.configuration.general?.enableAppleCloud = newValue
-      HamsterAppDependencyContainer.shared.applicationConfiguration.general?.enableAppleCloud = newValue
-    }
-  }
 
   var tableReloadSubject = PassthroughSubject<Bool, Never>()
   var tableReloadPublished: AnyPublisher<Bool, Never> {
@@ -78,15 +69,6 @@ public class SettingsViewModel: ObservableObject {
             },
             favoriteButton: .rimeDeploy
           )
-        case .rimeSync: return SettingItemModel(
-            text: "RIME同步",
-            type: .button,
-            buttonAction: { [weak self] in
-              guard let self = self else { return }
-              await rimeViewModel.rimeSync()
-            },
-            favoriteButton: .rimeSync
-          )
         case .appBackup: return SettingItemModel(
             text: "应用备份",
             type: .button,
@@ -110,14 +92,6 @@ public class SettingsViewModel: ObservableObject {
           accessoryType: .disclosureIndicator,
           navigationAction: { [unowned self] in
             self.mainViewModel.subViewSubject.send(.inputSchema)
-          }
-        ),
-        .init(
-          icon: UIImage(systemName: "wifi")!,
-          text: "Wi-Fi上传方案",
-          accessoryType: .disclosureIndicator,
-          navigationAction: { [unowned self] in
-            self.mainViewModel.subViewSubject.send(.uploadInputSchema)
           }
         ),
         .init(
@@ -149,7 +123,7 @@ public class SettingsViewModel: ObservableObject {
         ),
         .init(
           icon: UIImage(systemName: "speaker.wave.3")!,
-          text: "按键音与震动",
+          text: "震动反馈",
           accessoryType: .disclosureIndicator,
           navigationAction: { [unowned self] in
             self.mainViewModel.subViewSubject.send(.feedback)
@@ -157,15 +131,6 @@ public class SettingsViewModel: ObservableObject {
         ),
       ]),
       SettingSectionModel(title: "同步与备份", items: [
-        .init(
-          icon: UIImage(systemName: "externaldrive.badge.icloud")!,
-          text: "iCloud同步",
-          accessoryType: .disclosureIndicator,
-          navigationLinkLabel: { [unowned self] in enableAppleCloud ? "启用" : "禁用" },
-          navigationAction: { [unowned self] in
-            self.mainViewModel.subViewSubject.send(.iCloud)
-          }
-        ),
         .init(
           icon: UIImage(systemName: "externaldrive.badge.timemachine")!,
           text: "软件备份",
@@ -175,7 +140,7 @@ public class SettingsViewModel: ObservableObject {
           }
         ),
       ]),
-      .init(title: "RIME", items: [
+      SettingSectionModel(title: "RIME", items: [
         .init(
           icon: UIImage(systemName: "r.square")!,
           text: "RIME",
@@ -271,9 +236,6 @@ extension SettingsViewModel {
       configuration.keyboard?.displayButtonBubbles = _showKeyPressBubble
     }
 
-    if let _enableKeyboardFeedbackSound = UserDefaults.hamster._enableKeyboardFeedbackSound {
-      configuration.keyboard?.enableKeySounds = _enableKeyboardFeedbackSound
-    }
 
     if let _enableKeyboardFeedbackHaptic = UserDefaults.hamster._enableKeyboardFeedbackHaptic {
       configuration.keyboard?.enableHapticFeedback = _enableKeyboardFeedbackHaptic

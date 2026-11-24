@@ -836,22 +836,19 @@ private extension KeyboardInputViewController {
 //        await shutdownRIME()
 //      }
 
-      // 检测是否需要覆盖 RIME 目录
-      // let overrideRimeDirectory = UserDefaults.hamster.overrideRimeDirectory
-
-      // 检测对 appGroup 路径下是否有写入权限，如果没有写入权限，则需要将 appGroup 下文件复制到键盘的 Sandbox 路径下
-//      if await !self.hasFullAccess {
-//        do {
-//          try FileManager.syncAppGroupUserDataDirectoryToSandbox(override: overrideRimeDirectory)
-//
-//          // 注意：如果没有开启键盘完全访问权限，则无权对 UserDefaults.hamster 写入
-//          UserDefaults.hamster.overrideRimeDirectory = false
-//        } catch {
-//          Logger.statistics.error("FileManager.syncAppGroupUserDataDirectoryToSandbox(override: \(overrideRimeDirectory)) error: \(error.localizedDescription)")
-//        }
-//      }
-
       guard await !rimeContext.isRunning else { return }
+
+      // 只创建私有目录，不覆盖已有学习数据。方案/用户词同步和重置需要单独的版本化协议。
+      do {
+        try FileManager.default.createDirectory(
+          at: FileManager.sandboxUserDataDirectory,
+          withIntermediateDirectories: true,
+          attributes: nil
+        )
+      } catch {
+        Logger.statistics.error("create keyboard RIME user data directory error: \(error.localizedDescription)")
+        return
+      }
 
       if let maximumNumberOfCandidateWords = await keyboardContext.hamsterConfiguration?.rime?.maximumNumberOfCandidateWords {
         await rimeContext.setMaximumNumberOfCandidateWords(maximumNumberOfCandidateWords)
@@ -861,7 +858,9 @@ private extension KeyboardInputViewController {
         await rimeContext.setUseContextPaging(swipePaging == false)
       }
 
-      await rimeContext.start(hasFullAccess: true)
+      // 该参数在现有实现中选择 UserData 路径，并非此处报告系统权限。
+      // 即使其他复用此控制器的扩展拥有完全访问，也始终使用扩展私有目录。
+      await rimeContext.start(hasFullAccess: false)
 
       let simplifiedModeKey = await keyboardContext.hamsterConfiguration?.rime?.keyValueOfSwitchSimplifiedAndTraditional ?? ""
       await rimeContext.syncTraditionalSimplifiedChineseMode(simplifiedModeKey: simplifiedModeKey)
@@ -871,9 +870,6 @@ private extension KeyboardInputViewController {
   func shutdownRIME() {
     /// 停止引擎，触发自造词等数据落盘
     rimeContext.shutdown()
-
-    /// 重新启动引擎
-    /// rimeContext.start(hasFullAccess: hasFullAccess)
   }
 
   /// Combine 观测 RIME 引擎中的用户输入及上屏文字

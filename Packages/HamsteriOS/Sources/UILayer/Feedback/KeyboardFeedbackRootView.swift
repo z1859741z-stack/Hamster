@@ -38,7 +38,7 @@ class KeyboardFeedbackRootView: NibLessView {
       .receive(on: DispatchQueue.main)
       .sink { [unowned self] _ in
         let animator = UIViewPropertyAnimator(duration: 0.3, curve: .easeInOut) {
-          self.tableView.reloadRows(at: [IndexPath(row: 0, section: 1)], with: .automatic)
+          self.tableView.reloadRows(at: [IndexPath(row: 0, section: 0)], with: .automatic)
         }
         animator.startAnimation()
       }
@@ -53,7 +53,7 @@ class KeyboardFeedbackRootView: NibLessView {
 
 extension KeyboardFeedbackRootView: UITableViewDataSource, UITableViewDelegate {
   func numberOfSections(in tableView: UITableView) -> Int {
-    2
+    1
   }
 
   func tableView(_ tableView: UITableView, numberOfRowsInSection section: Int) -> Int {
@@ -61,24 +61,10 @@ extension KeyboardFeedbackRootView: UITableViewDataSource, UITableViewDelegate {
   }
 
   func tableView(_ tableView: UITableView, cellForRowAt indexPath: IndexPath) -> UITableViewCell {
-    if indexPath.section == 0 {
-      let cell = ToggleTableViewCell(style: .default, reuseIdentifier: ToggleTableViewCell.identifier)
-      cell.settingItem = .init(
-        text: "开启按键声",
-        toggleValue: { [unowned self] in keyboardFeedbackViewModel.enableKeySounds },
-        toggleHandled: { [unowned self] in
-          keyboardFeedbackViewModel.enableKeySounds = $0
-        }
-      )
-      return cell
-    }
     return HapticFeedbackTableViewCell(keyboardFeedbackViewModel: keyboardFeedbackViewModel)
   }
 
   func tableView(_ tableView: UITableView, titleForFooterInSection section: Int) -> String? {
-    if section == 1 {
-      return "开启震动需要为键盘开启“完全访问权限”"
-    }
-    return ""
+    return "开启震动需要为键盘开启“完全访问权限”"
   }
 }

@@ -1,49 +1,354 @@
-name: Build Test
+name: iOS CI
+
 on:
   push:
-    branches:
-      - main
+    branches: ['**']
   pull_request:
-    branches:
-      - main
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
 
 jobs:
-  build:
-    runs-on: macos-13
+  build-test-release:
+    runs-on: macos-26
+    timeout-minutes: 120
+    permissions:
+      contents: write
+    defaults:
+      run:
+        shell: bash
+    env:
+      DERIVED_DATA_PATH: ${{ github.workspace }}/.ci/DerivedData
+      SPM_CACHE_PATH: ${{ github.workspace }}/.ci/SourcePackages
+      CI_OUTPUT_DIR: ${{ github.workspace }}/.ci/output
     steps:
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
+          persist-credentials: false
           submodules: true
 
-      - name: Download Frameworks
-        uses: robinraju/release-downloader@v1.7
+      - name: Identify Xcode
+        id: xcode
+        run: |
+          set -euo pipefail
+          xcodebuild -version
+          xcrun simctl list runtimes
+          echo "cache_id=$(xcodebuild -version | shasum -a 256 | cut -c1-12)" >> "$GITHUB_OUTPUT"
+
+      - name: Restore Swift package cache
+        uses: actions/cache@v4
         with:
-          repository: "imfuxiao/LibrimeKit"
-          latest: true
-          fileName: "Frameworks.tgz"
+          path: ${{ env.SPM_CACHE_PATH }}
+          key: spm-${{ runner.os }}-${{ runner.arch }}-${{ steps.xcode.outputs.cache_id }}-${{ hashFiles('**/Package.resolved', '**/Package.swift') }}
+          restore-keys: |
+            spm-${{ runner.os }}-${{ runner.arch }}-${{ steps.xcode.outputs.cache_id }}-
 
-      - name: Un-tar Frameworks
-        run: |
-          tar -xzf Frameworks.tgz -C Frameworks/..
-
-      - name: Build Schemas
-        run: |
-          make schema
-
-      - name: Select Xcode
-        run: sudo xcode-select -s "/Applications/Xcode_15.0.1.app"
-
-      - name: Compile
-        run: |
-          xcodebuild archive -archivePath "Hamster" -scheme "Hamster" -sdk "iphoneos" -arch arm64 -configuration Release CODE_SIGNING_ALLOWED=NO
-          BUILT_PATH=$(find Hamster.xcarchive -name '*.app' -type d | head -1)
-          find "$BUILT_PATH" -type d -path '*/Frameworks/*.dylib' -exec codesign --force --sign - --timestamp=none \{\} \;
-          codesign --force --sign - --entitlements "Hamster/Hamster.entitlements" --timestamp=none "$BUILT_PATH"
-          tar -acf Hamster.xcarchive.tgz Hamster.xcarchive
-
-      - name: Upload xcarchive
-        uses: actions/upload-artifact@v3
+      - name: Restore DerivedData cache
+        uses: actions/cache@v4
         with:
-          name: Hamster-ios-arm64-xcarchive
-          path: Hamster.xcarchive.tgz
+          path: ${{ env.DERIVED_DATA_PATH }}
+          key: derived-${{ runner.os }}-${{ runner.arch }}-${{ steps.xcode.outputs.cache_id }}-${{ hashFiles('**/Package.resolved', '**/Package.swift', 'Hamster.xcodeproj/project.pbxproj') }}-${{ github.sha }}
+          restore-keys: |
+            derived-${{ runner.os }}-${{ runner.arch }}-${{ steps.xcode.outputs.cache_id }}-${{ hashFiles('**/Package.resolved', '**/Package.swift', 'Hamster.xcodeproj/project.pbxproj') }}-
+
+      - name: Prepare pinned librime XCFramework and licenses
+        run: |
+          set -euo pipefail
+          bash ci_scripts/prepare-rime-framework.sh
+
+      - name: Build fixed offline schema resources
+        run: |
+          set -euo pipefail
+          bash ci_scripts/build-schema-fixed.sh --third-party-notices Frameworks/CI-licenses/librime-xcframework/third-party-notices.zip
+          bash ci_scripts/schema-self-test.sh
+
+      - name: Determine build identity
+        id: identity
+        run: |
+          set -euo pipefail
+          version="$(xcodebuild -project Hamster.xcodeproj -target Hamster -configuration Release -showBuildSettings | sed -n 's/^[[:space:]]*MARKETING_VERSION = //p' | head -n 1)"
+          if [[ ! "$version" =~ ^[0-9]+(\.[0-9]+){1,2}$ ]]; then
+            echo "::error::Could not determine a valid Hamster MARKETING_VERSION: $version"
+            exit 1
+          fi
+          short_sha="$(git rev-parse --short=8 HEAD)"
+          build_number="$GITHUB_RUN_NUMBER"
+          tag="ci-v${version}-b${build_number}-${short_sha}-a${GITHUB_RUN_ATTEMPT}"
+          ipa_name="Hamster-v${version}-b${build_number}-${short_sha}-unsigned.ipa"
+          {
+            echo "MARKETING_VERSION=$version"
+            echo "BUILD_NUMBER=$build_number"
+            echo "SHORT_SHA=$short_sha"
+            echo "RELEASE_TAG=$tag"
+            echo "IPA_NAME=$ipa_name"
+          } >> "$GITHUB_ENV"
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          mkdir -p "$CI_OUTPUT_DIR"
+          echo "Version $version; build $build_number; commit $short_sha"
+
+      - name: Create and boot iPhone 16 Pro Max with iOS 26.2
+        run: |
+          set -euo pipefail
+          device_type='com.apple.CoreSimulator.SimDeviceType.iPhone-16-Pro-Max'
+          runtime='com.apple.CoreSimulator.SimRuntime.iOS-26-2'
+          xcrun simctl list devicetypes --json > "$RUNNER_TEMP/device-types.json"
+          xcrun simctl list runtimes --json > "$RUNNER_TEMP/runtimes.json"
+          python3 - "$RUNNER_TEMP/device-types.json" "$RUNNER_TEMP/runtimes.json" "$device_type" "$runtime" <<'PY'
+          import json, sys
+          with open(sys.argv[1]) as f:
+              types = json.load(f).get('devicetypes', [])
+          with open(sys.argv[2]) as f:
+              runtimes = json.load(f).get('runtimes', [])
+          if not any(d.get('identifier') == sys.argv[3] for d in types):
+              sys.exit('iPhone 16 Pro Max simulator device type unavailable; cannot capture the requested device')
+          if not any(r.get('identifier') == sys.argv[4] and r.get('isAvailable') for r in runtimes):
+              sys.exit('iOS 26.2 simulator runtime unavailable; cannot capture the requested OS')
+          PY
+          udid="$(xcrun simctl create 'iPhone 16 Pro Max' "$device_type" "$runtime")" || {
+            echo '::error::Cannot create iPhone 16 Pro Max / iOS 26.2 simulator on this runner.'
+            exit 1
+          }
+          echo "SIMULATOR_UDID=$udid" >> "$GITHUB_ENV"
+          xcrun simctl boot "$udid"
+          xcrun simctl bootstatus "$udid" -b
+
+      # The main scheme references a deleted HamsterTests target. Run real,
+      # assertion-bearing tests from the existing HamsterKit Swift package instead.
+      - name: Run HamsterKit unit tests on iOS simulator
+        run: |
+          set -euo pipefail
+          rm -rf "$RUNNER_TEMP/HamsterKitTests.xcresult"
+          cd Packages/HamsterKit
+          xcodebuild -list -json > "$RUNNER_TEMP/HamsterKit-schemes.json"
+          cat "$RUNNER_TEMP/HamsterKit-schemes.json"
+          scheme="$(python3 - "$RUNNER_TEMP/HamsterKit-schemes.json" <<'PY'
+          import json, sys
+          with open(sys.argv[1]) as f:
+              data = json.load(f)
+          schemes = (data.get('workspace') or data.get('project') or {}).get('schemes', [])
+          for name in ('HamsterKit-Package', 'HamsterKit'):
+              if name in schemes:
+                  print(name)
+                  break
+          else:
+              sys.exit('No HamsterKit Swift package scheme found; unit testing is blocked')
+          PY
+          )"
+          xcodebuild test \
+            -scheme "$scheme" \
+            -destination "platform=iOS Simulator,id=$SIMULATOR_UDID" \
+            -derivedDataPath "$DERIVED_DATA_PATH" \
+            -clonedSourcePackagesDirPath "$SPM_CACHE_PATH" \
+            -resultBundlePath "$RUNNER_TEMP/HamsterKitTests.xcresult" \
+            -parallel-testing-enabled NO \
+            '-only-testing:HamsterKitTests/StringTest/testRegex' \
+            '-only-testing:HamsterKitTests/StringTest/testContainsChineseCharacters' \
+            '-only-testing:HamsterKitTests/T9Test/testT9ToPinyin' \
+            '-only-testing:HamsterKitTests/AppInfoTest/testVersionBuildAndCommitAreDisplayed' \
+            '-only-testing:HamsterKitTests/AppInfoTest/testMissingOrUnexpandedBuildMetadataIsNotReportedAsActual' \
+            CODE_SIGNING_ALLOWED=NO
+
+      - name: Verify unit tests actually ran and passed
+        run: |
+          set -euo pipefail
+          xcrun xcresulttool get test-results summary --path "$RUNNER_TEMP/HamsterKitTests.xcresult" > "$RUNNER_TEMP/test-summary.json"
+          xcrun xcresulttool get test-results tests --path "$RUNNER_TEMP/HamsterKitTests.xcresult" > "$RUNNER_TEMP/test-nodes.json"
+          cat "$RUNNER_TEMP/test-summary.json"
+          python3 - "$RUNNER_TEMP/test-summary.json" "$RUNNER_TEMP/test-nodes.json" <<'PY'
+          import json, sys
+          with open(sys.argv[1]) as f:
+              summary = json.load(f)
+          with open(sys.argv[2]) as f:
+              report = json.load(f)
+          if summary.get('result') != 'Passed' or summary.get('failedTests') != 0 or summary.get('skippedTests') != 0 or summary.get('passedTests', 0) < 5:
+              sys.exit('Test summary is not a complete passing run; release blocked')
+          required = {'StringTest/testRegex', 'StringTest/testContainsChineseCharacters', 'T9Test/testT9ToPinyin',
+                      'AppInfoTest/testVersionBuildAndCommitAreDisplayed',
+                      'AppInfoTest/testMissingOrUnexpandedBuildMetadataIsNotReportedAsActual'}
+          passed = set()
+          def visit(node):
+              if isinstance(node, dict):
+                  if node.get('nodeType') == 'Test Case' and node.get('result') == 'Passed':
+                      passed.add(node.get('nodeIdentifier', '').removesuffix('()'))
+                  for child in node.values():
+                      visit(child)
+              elif isinstance(node, list):
+                  for child in node:
+                      visit(child)
+          visit(report.get('testNodes', []))
+          missing = {name for name in required if not any(p == name or p.endswith('/' + name) for p in passed)}
+          if missing:
+              sys.exit('Required assertion-bearing tests absent or not passed: ' + ', '.join(sorted(missing)))
+          print('Verified required passing tests:', ', '.join(sorted(required)))
+          PY
+
+      - name: Build simulator app
+        run: |
+          set -euo pipefail
+          xcodebuild build \
+            -project Hamster.xcodeproj -scheme Hamster -configuration Debug \
+            -destination "platform=iOS Simulator,id=$SIMULATOR_UDID" \
+            -derivedDataPath "$DERIVED_DATA_PATH" \
+            -clonedSourcePackagesDirPath "$SPM_CACHE_PATH" \
+            CURRENT_PROJECT_VERSION="$GITHUB_RUN_NUMBER" HAMSTER_GIT_COMMIT="$(git rev-parse --short=8 HEAD)" \
+            CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO
+          test -f "$DERIVED_DATA_PATH/Build/Products/Debug-iphonesimulator/Hamster.app/Info.plist"
+          python3 - "$DERIVED_DATA_PATH/Build/Products/Debug-iphonesimulator/Hamster.app/Info.plist" "$GITHUB_RUN_NUMBER" "$SHORT_SHA" <<'PY'
+          import plistlib, sys
+          with open(sys.argv[1], 'rb') as f:
+              info = plistlib.load(f)
+          if str(info.get('CFBundleVersion')) != sys.argv[2] or info.get('HamsterGitCommit') != sys.argv[3]:
+              sys.exit('Simulator app has the wrong build number or commit identity')
+          PY
+
+      # Contract: named options --udid, --app, --output; installs and launches
+      # the simulator .app and captures real PNGs, failing on errors. Its secure
+      # field image is the system keyboard, not the Hamster keyboard.
+      - name: Capture simulator screenshots
+        run: |
+          set -euo pipefail
+          rm -rf "$CI_OUTPUT_DIR/screenshots"
+          mkdir -p "$CI_OUTPUT_DIR/screenshots"
+          bash ci_scripts/simulator-screenshots.sh \
+            --udid "$SIMULATOR_UDID" \
+            --app "$DERIVED_DATA_PATH/Build/Products/Debug-iphonesimulator/Hamster.app" \
+            --output "$CI_OUTPUT_DIR/screenshots" \
+            --require-device 'iPhone 16 Pro Max' \
+            --require-device-type 'com.apple.CoreSimulator.SimDeviceType.iPhone-16-Pro-Max' \
+            --require-ios 26.2
+          shopt -s nullglob
+          images=("$CI_OUTPUT_DIR"/screenshots/*.png)
+          ((${#images[@]} > 0)) || { echo '::error::No simulator screenshots produced'; exit 1; }
+          test -s "$CI_OUTPUT_DIR/screenshots/01-main-app-launch-unverified.png"
+          test -s "$CI_OUTPUT_DIR/screenshots/02-system-keyboard-secure.png"
+          for image in "${images[@]}"; do
+            test -s "$image"
+            sips -g pixelWidth -g pixelHeight "$image"
+          done
+
+      - name: Archive unsigned iPhone app
+        run: |
+          set -euo pipefail
+          rm -rf "$RUNNER_TEMP/Hamster.xcarchive"
+          xcodebuild archive \
+            -project Hamster.xcodeproj -scheme Hamster -configuration Release \
+            -destination 'generic/platform=iOS' \
+            -archivePath "$RUNNER_TEMP/Hamster.xcarchive" \
+            -derivedDataPath "$DERIVED_DATA_PATH" \
+            -clonedSourcePackagesDirPath "$SPM_CACHE_PATH" \
+            CURRENT_PROJECT_VERSION="$GITHUB_RUN_NUMBER" HAMSTER_GIT_COMMIT="$(git rev-parse --short=8 HEAD)" \
+            CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO
+
+      # Contract: --app points to the iPhoneOS app inside the archive and
+      # --output names the IPA; rejects signed code and missing extensions.
+      - name: Package unsigned IPA
+        run: |
+          set -euo pipefail
+          bash ci_scripts/package-unsigned-ipa.sh \
+            --app "$RUNNER_TEMP/Hamster.xcarchive/Products/Applications/Hamster.app" \
+            --output "$CI_OUTPUT_DIR/$IPA_NAME"
+
+      - name: Validate IPA contents and build identity
+        run: |
+          set -euo pipefail
+          python3 - "$CI_OUTPUT_DIR/$IPA_NAME" "$MARKETING_VERSION" "$BUILD_NUMBER" "$SHORT_SHA" <<'PY'
+          import plistlib, sys, zipfile
+          path, version, build, short_sha = sys.argv[1:]
+          if not zipfile.is_zipfile(path):
+              sys.exit('IPA is not a valid ZIP archive')
+          with zipfile.ZipFile(path) as z:
+              names = z.namelist()
+              if len(names) != len(set(names)) or z.testzip() is not None:
+                  sys.exit('IPA has duplicate or corrupt ZIP entries')
+              if any(n.startswith('/') or '..' in n.split('/') for n in names):
+                  sys.exit('IPA contains an unsafe path')
+              root = 'Payload/Hamster.app/'
+              if any('/_CodeSignature/' in n or n.endswith('/embedded.mobileprovision') for n in names):
+                  sys.exit('IPA unexpectedly contains a code-signature directory or provisioning profile')
+              for directory, package_type in [(root, 'APPL'), (root + 'PlugIns/HamsterKeyboard.appex/', 'XPC!')]:
+                  try:
+                      info = plistlib.loads(z.read(directory + 'Info.plist'))
+                      executable = info['CFBundleExecutable']
+                      if '/' in executable or not executable or z.getinfo(directory + executable).file_size == 0:
+                          raise ValueError('missing executable')
+                  except (KeyError, ValueError, TypeError, plistlib.InvalidFileException) as e:
+                      sys.exit(f'Invalid app or keyboard extension at {directory}: {e}')
+                  if info.get('CFBundlePackageType') != package_type or str(info.get('CFBundleVersion')) != build or info.get('CFBundleShortVersionString') != version:
+                      sys.exit(f'Wrong package type or version/build for {directory}: {info}')
+                  if directory == root and info.get('HamsterGitCommit') != short_sha:
+                      sys.exit('Wrong or missing HamsterGitCommit in packaged app')
+                  print(f'Validated {directory} {version} ({build})')
+          PY
+
+      - name: Upload CI artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: Hamster-${{ env.MARKETING_VERSION }}-b${{ env.BUILD_NUMBER }}-${{ env.SHORT_SHA }}
+          path: |
+            ${{ env.CI_OUTPUT_DIR }}/*.ipa
+            ${{ env.CI_OUTPUT_DIR }}/screenshots/*.png
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Publish public Release and direct asset links
+        if: github.event_name == 'push' && github.ref_type == 'branch'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPOSITORY_PRIVATE: ${{ github.event.repository.private }}
+        run: |
+          set -euo pipefail
+          if [[ "$REPOSITORY_PRIVATE" != "false" ]]; then
+            echo '::error::Repository is private; public Release download links cannot be provided.'
+            exit 1
+          fi
+          shopt -s nullglob
+          assets=("$CI_OUTPUT_DIR/$IPA_NAME" "$CI_OUTPUT_DIR"/screenshots/*.png)
+          ((${#assets[@]} >= 2)) || { echo '::error::IPA or screenshots missing'; exit 1; }
+          notes="$RUNNER_TEMP/release-notes.md"
+          {
+            echo "Unsigned iOS build $MARKETING_VERSION ($BUILD_NUMBER), commit $SHORT_SHA."
+            echo
+            echo 'This IPA is unsigned and cannot be installed on a physical iPhone without independently signing it and its embedded keyboard extensions.'
+            echo 'Screenshots are real simulator captures, but require visual review. The keyboard screenshot shows the system keyboard in a separate secure-field helper, not the Hamster keyboard. No physical-device or keyboard-extension UI test was performed.'
+            echo 'Unit tests: selected HamsterKit StringTest, T9Test and AppInfoTest cases.'
+            echo
+            echo 'Direct asset downloads:'
+            for asset in "${assets[@]}"; do
+              name="$(basename "$asset")"
+              echo "- [$name]($GITHUB_SERVER_URL/$GITHUB_REPOSITORY/releases/download/$RELEASE_TAG/$name)"
+            done
+          } > "$notes"
+          # gh creates a draft first. A failed upload leaves only a draft, not a public release.
+          gh release create "$RELEASE_TAG" "${assets[@]}" --draft --target "$GITHUB_SHA" \
+            --title "Hamster $MARKETING_VERSION ($BUILD_NUMBER) $SHORT_SHA" --notes-file "$notes" --latest=false
+          gh api "repos/$GITHUB_REPOSITORY/releases/tags/$RELEASE_TAG" > "$RUNNER_TEMP/release.json"
+          python3 - "$RUNNER_TEMP/release.json" "${assets[@]}" <<'PY'
+          import json, os, sys
+          with open(sys.argv[1]) as f:
+              release = json.load(f)
+          if not release.get('draft'):
+              sys.exit('Expected a draft release before asset validation')
+          remote = {a['name']: a for a in release['assets']}
+          for path in sys.argv[2:]:
+              name = os.path.basename(path)
+              asset = remote.get(name)
+              if not asset or asset.get('state') != 'uploaded' or asset.get('size') != os.path.getsize(path):
+                  sys.exit('Missing or invalid uploaded release asset: ' + name)
+          PY
+          gh release edit "$RELEASE_TAG" --draft=false
+          gh api "repos/$GITHUB_REPOSITORY/releases/tags/$RELEASE_TAG" > "$RUNNER_TEMP/release.json"
+          python3 - "$RUNNER_TEMP/release.json" >> "$GITHUB_STEP_SUMMARY" <<'PY'
+          import json, sys
+          with open(sys.argv[1]) as f:
+              release = json.load(f)
+          if release['draft']:
+              sys.exit('Release is still a draft')
+          print('## Public Release')
+          print(f"[{release['name']}]({release['html_url']})")
+          print()
+          for asset in release['assets']:
+              print(f"- [{asset['name']}]({asset['browser_download_url']})")
+          PY

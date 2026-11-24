@@ -33,30 +33,9 @@ public class AboutViewModel: ObservableObject {
         UIPasteboard.general.string = AppInfo.rimeVersion
         await ProgressHUD.success("复制成功", interaction: false, delay: 1.5)
       }),
-      .init(text: "许可证", secondaryText: "GPLv3", type: .settings, buttonAction: {
-        let link = "https://www.gnu.org/licenses/gpl-3.0.html"
-        if let url = URL(string: link) {
-          DispatchQueue.main.async {
-            UIApplication.shared.open(url)
-          }
-        }
-      }),
-      .init(text: "联系邮箱", secondaryText: "morse.hsiao@gmail.com", type: .settings, buttonAction: {
-        let link = "morse.hsiao@gmail.com"
-        if let url = URL(string: "mailto:\(link)") {
-          DispatchQueue.main.async {
-            UIApplication.shared.open(url)
-          }
-        }
-      }),
-      .init(text: "开源地址", secondaryText: "https://github.com/imfuxiao/Hamster", type: .settings, buttonAction: {
-        let link = "https://github.com/imfuxiao/Hamster"
-        if let url = URL(string: link) {
-          DispatchQueue.main.async {
-            UIApplication.shared.open(url)
-          }
-        }
-      }),
+      .init(text: "许可证", secondaryText: "GPLv3", type: .settings),
+      .init(text: "联系邮箱", secondaryText: "morse.hsiao@gmail.com", type: .settings),
+      .init(text: "开源地址", secondaryText: "https://github.com/imfuxiao/Hamster", type: .settings),
       .init(text: "使用开源库列表", accessoryType: .disclosureIndicator, type: .navigation, navigationAction: { [unowned self] in displayOpenSourceView = true })
     ]),
 

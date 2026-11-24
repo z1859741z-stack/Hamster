@@ -13,7 +13,6 @@ import UIKit
 class InputSchemaViewController: NibLessViewController {
   private let inputSchemaViewModel: InputSchemaViewModel
   private let documentPickerViewController: UIDocumentPickerViewController
-  private lazy var cloudInputSchemaViewController: CloudInputSchemaViewController = .init(inputSchemaViewModel: inputSchemaViewModel)
 
   private var subscriptions = Set<AnyCancellable>()
 
@@ -35,7 +34,6 @@ class InputSchemaViewController: NibLessViewController {
       .sink {
         switch $0 {
         case .documentPicker: self.presentDocumentPicker()
-        case .downloadCloudInputSchema: self.presentCloudInputSchema()
         default: return
         }
       }
@@ -55,10 +53,6 @@ class InputSchemaViewController: NibLessViewController {
     present(documentPickerViewController, animated: true, completion: nil)
   }
 
-  /// 云存储输入方案下载
-  func presentCloudInputSchema() {
-    navigationController?.pushViewController(cloudInputSchemaViewController, animated: true)
-  }
 }
 
 // MARK: override UIViewController

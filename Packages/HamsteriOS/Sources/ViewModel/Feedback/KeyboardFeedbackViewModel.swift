@@ -15,15 +15,6 @@ import UIKit
 public class KeyboardFeedbackViewModel {
   // MARK: properties
 
-  public var enableKeySounds: Bool {
-    get {
-      HamsterAppDependencyContainer.shared.configuration.keyboard?.enableKeySounds ?? false
-    }
-    set {
-      HamsterAppDependencyContainer.shared.configuration.keyboard?.enableKeySounds = newValue
-      HamsterAppDependencyContainer.shared.applicationConfiguration.keyboard?.enableKeySounds = newValue
-    }
-  }
 
   public var enableHapticFeedback: Bool {
     get {

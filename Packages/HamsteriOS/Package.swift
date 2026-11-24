@@ -21,7 +21,6 @@ let package = Package(
     .package(path: "../HamsterKit"),
     .package(path: "../RimeKit"),
     .package(path: "../HamsterKeyboardKit"),
-    .package(path: "../HamsterFileServer"),
   ],
   targets: [
     .target(
@@ -39,13 +38,9 @@ let package = Package(
         "HamsterKit",
         "HamsterKeyboardKit",
         .product(name: "RimeKit", package: "RimeKit"),
-        "HamsterFileServer",
       ],
       path: "Sources",
+      exclude: ["CloudKit", "UILayer/InputSchema/CloudInputSchema", "UILayer/UploadInputSchema", "ViewModel/UploadInputSchema", "UILayer/iCloud", "ViewModel/iCloud"],
       resources: [.process("Resources")]
     ),
-    .testTarget(
-      name: "HamsteriOSTests",
-      dependencies: ["HamsteriOS"],
-      path: "Tests"),
   ])

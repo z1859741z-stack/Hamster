@@ -51,12 +51,3 @@ extension OpenSourceRootView: UITableViewDataSource {
     return cell
   }
 }
-
-extension OpenSourceRootView: UITableViewDelegate {
-  func tableView(_ tableView: UITableView, didSelectRowAt indexPath: IndexPath) {
-    let openSourceInfo = openSourceViewModel.openSourceList[indexPath.row]
-    if let url = URL(string: openSourceInfo.projectURL) {
-      UIApplication.shared.open(url)
-    }
-  }
-}

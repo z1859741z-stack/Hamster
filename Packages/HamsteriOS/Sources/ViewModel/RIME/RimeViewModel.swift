@@ -117,28 +117,6 @@ public class RimeViewModel {
         ),
       ]
     ),
-    .init(
-      footer: """
-      注意：
-      1. RIME同步自定义参数，需要手工添加至Rime目录下的`installation.yaml`文件中(如果没有，需要则自行创建)；
-      2. 同步配置示例：(点击可复制)
-      ```
-      \(Self.rimeSyncConfigSample)
-      ```
-      """,
-      items: [
-        .init(
-          text: "RIME同步",
-          type: .button,
-          buttonAction: { [unowned self] in
-            Task {
-              await rimeSync()
-            }
-          },
-          favoriteButton: .rimeSync
-        ),
-      ]
-    ),
     .init(items: [
       .init(
         text: "RIME重置",
@@ -244,42 +222,10 @@ public extension RimeViewModel {
     closeRimeLogger(fileHandle)
   }
 
-  /// RIME 同步
+  /// Offline builds do not access cloud sync directories.
   func rimeSync() async {
-    let (fileHandle, filePath) = rimeLogger()
-    do {
-      await ProgressHUD.animate("RIME同步中, 请稍候……", interaction: false)
-
-      let hamsterConfiguration = HamsterAppDependencyContainer.shared.configuration
-
-      // 先打开iCloud地址，防止Crash
-      _ = URL.iCloudDocumentURL
-
-      // 增加同步路径检测（sync_dir），检测是否有权限写入。
-      if let syncDir = FileManager.sandboxInstallationYaml.getSyncPath() {
-        if !FileManager.default.fileExists(atPath: syncDir) {
-          do {
-            try FileManager.default.createDirectory(atPath: syncDir, withIntermediateDirectories: true)
-          } catch {
-            throw "同步地址无写入权限：\(syncDir)"
-          }
-        } else {
-          if !FileManager.default.isWritableFile(atPath: syncDir) {
-            throw "同步地址无写入权限：\(syncDir)"
-          }
-        }
-      }
-
-      try rimeContext.syncRime(configuration: hamsterConfiguration)
-      await checkRimeLogger(filePath)
-      await ProgressHUD.success("同步成功", interaction: false, delay: 1.5)
-    } catch {
-      Logger.statistics.error("rime sync error: \(error)")
-      await ProgressHUD.failed("同步失败:\(error.localizedDescription)", interaction: false, delay: 3)
-    }
-    closeRimeLogger(fileHandle)
+    await ProgressHUD.failed("离线版本不支持 RIME 同步", interaction: false, delay: 3)
   }
-
   /// Rime重置
   func rimeRest() async {
     await ProgressHUD.animate("RIME重置中, 请稍候……", interaction: false)
@@ -328,14 +274,4 @@ public extension RimeViewModel {
       await ProgressHUD.failed("重置失败", interaction: false, delay: 3)
     }
   }
-}
-
-public extension RimeViewModel {
-  static let rimeSyncConfigSample = """
-  # id可以自定义，但不能其他终端定义的ID重复
-  installation_id: "hamster"
-  # 仓的iOS中iCloud前缀路径固定为：/private/var/mobile/Library/Mobile Documents/iCloud~dev~fuxiao~app~hamsterapp/Documents
-  # iOS中的路径与MacOS及Windows的iCloud路径是不同的
-  sync_dir: "/private/var/mobile/Library/Mobile Documents/iCloud~dev~fuxiao~app~hamsterapp/Documents/sync"
-  """
 }
