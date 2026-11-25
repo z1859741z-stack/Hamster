@@ -11,7 +11,7 @@ import AppIntents
 struct IntentProvider: AppShortcutsProvider {
   static var appShortcuts: [AppShortcut] {
     return [
-      AppShortcut(intent: RimeDeployIntent(), phrases: ["RIME Deploy", "RIME 重新部署"]),
+      AppShortcut(intent: RimeDeployIntent(), phrases: ["RIME Deploy with ${applicationName}", "用${applicationName}重新部署 RIME"]),
     ]
   }
 }
