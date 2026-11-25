@@ -255,14 +255,13 @@ public extension FileManager {
   // 注意：AppGroup已变为Keyboard复制方案使用的中转站
   // App内部使用位置在 Document 和 iCloud 下
   static var shareURL: URL {
-    // 重签证书不带 App Group 时 containerURL 返回 nil，之前这里强解直接闪退。
-    // 不可用时退回沙盒目录：AppGroup 下的 Rime/SharedSupport 子目录
-    // 正好就是沙盒的 Rime/SharedSupport，部署流程无需改动。
-    if let groupURL = FileManager.default.containerURL(
-      forSecurityApplicationGroupIdentifier: HamsterConstants.appGroupName) {
+    // 运行时自动选组：先试写死的组，再按字母序试描述文件里的组，
+    // 取第一个 containerURL 非 nil 的；全失败才退回沙盒。
+    // 主 App 与键盘扩展用同一套逻辑，选到同一个组。
+    if let groupURL = AppGroupResolver.resolvedGroupURL {
       return groupURL.appendingPathComponent("InputSchema")
     }
-    Logger.statistics.warning("App Group 不可用，已退回沙盒目录部署：\(HamsterConstants.appGroupName)")
+    Logger.statistics.warning("App Group 不可用，已退回沙盒目录部署；候选：\(AppGroupResolver.candidateGroups)")
     return sandboxDirectory
   }
 

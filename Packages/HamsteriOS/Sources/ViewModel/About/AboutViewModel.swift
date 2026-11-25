@@ -29,6 +29,10 @@ public class AboutViewModel: ObservableObject {
 
   lazy var settingItems: [SettingSectionModel] = [
     .init(items: [
+      .init(text: "App Group", secondaryText: AppGroupResolver.displayText, type: .settings, buttonAction: {
+        UIPasteboard.general.string = AppGroupResolver.resolvedGroupName ?? AppGroupResolver.displayText
+        await ProgressHUD.success("复制成功", interaction: false, delay: 1.5)
+      }),
       .init(text: "RIME版本", secondaryText: AppInfo.rimeVersion, type: .settings, buttonAction: {
         UIPasteboard.general.string = AppInfo.rimeVersion
         await ProgressHUD.success("复制成功", interaction: false, delay: 1.5)

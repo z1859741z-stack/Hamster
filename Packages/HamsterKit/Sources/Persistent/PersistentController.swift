@@ -15,11 +15,9 @@ struct PersistentController {
   init() {
     let name = "HamsterApp"
 
-    // 重签证书不带 App Group 时 containerURL 返回 nil，之前这里强解直接闪退；
-    // 不可用时把数据库放在沙盒目录。
-    let baseURL = FileManager.default.containerURL(
-      forSecurityApplicationGroupIdentifier: HamsterConstants.appGroupName)
-      ?? FileManager.sandboxDirectory
+    // 用运行时选到的 App Group（与 FileManager.shareURL 同一组）；
+    // 无可用组时把数据库放在沙盒目录。
+    let baseURL = AppGroupResolver.resolvedGroupURL ?? FileManager.sandboxDirectory
     let storeURL = baseURL.appendingPathComponent("\(name).sqlite")
 
     let storeDescription = NSPersistentStoreDescription(url: storeURL)

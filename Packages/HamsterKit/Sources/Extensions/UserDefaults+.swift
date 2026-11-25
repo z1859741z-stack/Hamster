@@ -11,9 +11,15 @@ import Yams
 
 /// UserDefault 扩展
 public extension UserDefaults {
-  /// AppGroup 共享 UserDefaults；重签证书不带 App Group 时 suiteName 返回 nil，
-  /// 退回应用自己的 UserDefaults，不强解。
-  static let hamster = UserDefaults(suiteName: HamsterConstants.appGroupName) ?? .standard
+  /// AppGroup 共享 UserDefaults；用运行时选到的组名（与 FileManager.shareURL 同一组）。
+  /// 重签证书不带任何可用组时退回应用自己的 UserDefaults，不强解。
+  static let hamster: UserDefaults = {
+    if let name = AppGroupResolver.resolvedGroupName,
+       let shared = UserDefaults(suiteName: name) {
+      return shared
+    }
+    return .standard
+  }()
 
   // MARK: - 仓输入法 1.0 版本相关参数
 
