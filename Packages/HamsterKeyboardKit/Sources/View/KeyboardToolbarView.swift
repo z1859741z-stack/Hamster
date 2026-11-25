@@ -164,7 +164,6 @@ class KeyboardToolbarView: NibLessView {
       .receive(on: DispatchQueue.main)
       .sink { [weak self] in
         guard let self = self else { return }
-        self.updateCandidateBarVisibility()
 
         // 检测是否启用内嵌编码
         guard !keyboardContext.enableEmbeddedInputMode else { return }
@@ -175,30 +174,17 @@ class KeyboardToolbarView: NibLessView {
         } else {
           candidateBarView.phoneticLabel.text = $0
         }
+
+        let userInputKey = rimeContext.userInputKey
+        self.commonFunctionBar.isHidden = !userInputKey.isEmpty
+        self.candidateBarView.isHidden = userInputKey.isEmpty
+        if !candidateBarView.isHidden, candidateBarView.superview == nil {
+          candidateBarView.setStyle(self.style)
+          addSubview(candidateBarView)
+          candidateBarView.fillSuperview()
+        }
       }
       .store(in: &subscriptions)
-
-    // TODO(临时诊断)：RIME 启动失败时也要显示候选栏里的诊断行，定位后删除
-    rimeContext.diagnosticTextPublished
-      .receive(on: DispatchQueue.main)
-      .sink { [weak self] _ in
-        self?.updateCandidateBarVisibility()
-      }
-      .store(in: &subscriptions)
-  }
-
-  /// 候选栏显隐：组字中显示；RIME 启动失败时也显示（看诊断行），否则显示常用功能栏。
-  private func updateCandidateBarVisibility() {
-    let composing = !rimeContext.userInputKey.isEmpty
-    let showDiagnostic = rimeContext.rimeStartFailed
-    commonFunctionBar.isHidden = composing || showDiagnostic
-    candidateBarView.isHidden = !composing && !showDiagnostic
-
-    if !candidateBarView.isHidden, candidateBarView.superview == nil {
-      candidateBarView.setStyle(self.style)
-      addSubview(candidateBarView)
-      candidateBarView.fillSuperview()
-    }
   }
 
   @objc func dismissKeyboardTouchDownAction() {

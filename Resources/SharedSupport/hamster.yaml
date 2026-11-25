@@ -46,7 +46,7 @@ keyboard:
   # custom(name): 自定义键盘，其中 name 对应自定义键盘配置(customizeKeyboards)中的 name。如: custom(中文26键)
   useKeyboardType: chinese
   # 关闭划动文本显示
-  disableSwipeLabel: false
+  disableSwipeLabel: true
   # 上下显示划动文本不规则布局
   swipeLabelUpAndDownIrregularLayout: false
   # 上下显示划动文本规则布局
@@ -74,7 +74,7 @@ keyboard:
   spaceRightButtonProcessByRIME: true
   keyValueOfSpaceRightButton: "."
   # 启用中英切换按键
-  displayChineseEnglishSwitchButton: false
+  displayChineseEnglishSwitchButton: true
   # 按键位于空格左侧
   chineseEnglishSwitchButtonIsOnLeftOfSpaceButton: false
   # 启用数字九宫格键盘

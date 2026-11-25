@@ -830,13 +830,29 @@ private extension KeyboardInputViewController {
   func setupRIME() {
     // 异步 RIME 引擎启动
     Task.detached { [unowned self] in
-//      if await rimeContext.isRunning {
-//        Logger.statistics.debug("shutdown rime engine")
-//        // 这里关闭引擎是为了使 RIME 内存中的自造词落盘。
-//        await shutdownRIME()
-//      }
+      // 每次键盘出现都先检查组里部署产物：主 App 重新部署后 build、
+      // installation.yaml 或 default.custom.yaml 的时间戳会变，
+      // 签名对不上就重新同步；同步过就重启引擎，让新 build 生效。
+      // 以前只在引擎没跑时同步一次：键盘进程已在跑时，
+      // 主 App 里换方案或重部署永远收不到，键盘一直用旧 build、旧方案。
+      var buildChanged = false
+      do {
+        buildChanged = try FileManager.syncAppGroupRimeBuildToSandbox()
+      } catch {
+        Logger.statistics.error("sync app group rime build error: \(error.localizedDescription)")
+      }
 
-      guard await !rimeContext.isRunning else { return }
+      if await rimeContext.isRunning {
+        if buildChanged {
+          // 重启引擎，让新 build 生效；start 里会重新选方案。
+          await shutdownRIME()
+        } else {
+          // 引擎在跑、build 没变：只重新应用当前方案，
+          // 主 App 里切过方案后不用重启键盘也生效。
+          let _ = rimeContext.setupRimeInputSchema()
+          return
+        }
+      }
 
       // 只创建私有目录，不覆盖已有学习数据。方案/用户词同步和重置需要单独的版本化协议。
       do {

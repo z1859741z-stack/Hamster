@@ -476,12 +476,17 @@ public extension FileManager {
   /// 只读组目录：同步 build/（已编译的 .bin）、installation.yaml、default.custom.yaml；
   /// 不碰 user.yaml 与 *.userdb，键盘本地的学习数据留在沙盒。
   /// 组不可用时 shareURL 已退回沙盒，src == dst，直接返回。
-  /// 用键盘本地签名（文件数-总字节-最新修改时间）判断是否需要同步，不依赖共享标记。
-  static func syncAppGroupRimeBuildToSandbox() throws {
+  /// 用键盘本地签名判断是否需要同步，不依赖共享标记。
+  /// 返回是否真的拷过文件：主 App 重新部署后 build、installation.yaml 或
+  /// default.custom.yaml 的时间戳变了才拷，调用方据此决定要不要重启引擎。
+  /// 注意：只比较 build 目录不够——换方案只改 default.custom.yaml，build 未必变，
+  /// 那两个 yaml 也必须放进签名，否则换方案后键盘永远收不到。
+  @discardableResult
+  static func syncAppGroupRimeBuildToSandbox() throws -> Bool {
     let fm = FileManager.default
     let srcUserDir = appGroupUserDataDirectoryURL
     let dstUserDir = sandboxUserDataDirectory
-    guard srcUserDir.standardizedFileURL != dstUserDir.standardizedFileURL else { return }
+    guard srcUserDir.standardizedFileURL != dstUserDir.standardizedFileURL else { return false }
 
     let srcBuild = srcUserDir.appendingPathComponent("build", isDirectory: true)
     guard fm.fileExists(atPath: srcBuild.path) else {
@@ -491,9 +496,9 @@ public extension FileManager {
     let signatureKey = "hamster.keyboard.rimeBuildSignature"
     let dstBuild = dstUserDir.appendingPathComponent("build", isDirectory: true)
     let dstHasBin = (try? fm.contentsOfDirectory(atPath: dstBuild.path))?.contains { $0.hasSuffix(".bin") } ?? false
-    if let signature = buildSignature(of: srcBuild),
+    if let signature = buildSignature(of: srcUserDir),
        UserDefaults.standard.string(forKey: signatureKey) == signature, dstHasBin {
-      return
+      return false
     }
 
     try copyDirectory(override: true, src: srcBuild, dst: dstBuild)
@@ -505,25 +510,32 @@ public extension FileManager {
       if fm.fileExists(atPath: dst.path) { try fm.removeItem(at: dst) }
       try fm.copyItem(at: src, to: dst)
     }
-    if let signature = buildSignature(of: srcBuild) {
+    if let signature = buildSignature(of: srcUserDir) {
       UserDefaults.standard.set(signature, forKey: signatureKey)
     }
+    return true
   }
 
-  /// 部署产物的本地签名：文件数-总字节-最新修改时间。
-  private static func buildSignature(of dir: URL) -> String? {
+  /// 部署产物的本地签名：build 下每个文件的相对路径、大小、修改时间，
+  /// 加上 installation.yaml 与 default.custom.yaml 的大小、修改时间。
+  private static func buildSignature(of userDir: URL) -> String? {
     let fm = FileManager.default
-    guard let names = try? fm.contentsOfDirectory(atPath: dir.path) else { return nil }
-    var count = 0
-    var total: UInt64 = 0
-    var latest: TimeInterval = 0
-    for name in names {
-      guard let attrs = try? fm.attributesOfItem(atPath: dir.appendingPathComponent(name).path) else { continue }
-      count += 1
-      total += (attrs[.size] as? NSNumber)?.uint64Value ?? 0
-      latest = max(latest, (attrs[.modificationDate] as? Date)?.timeIntervalSince1970 ?? 0)
+    let buildDir = userDir.appendingPathComponent("build", isDirectory: true)
+    guard let names = try? fm.contentsOfDirectory(atPath: buildDir.path) else { return nil }
+    var parts: [String] = []
+    for name in names.sorted() {
+      guard let attrs = try? fm.attributesOfItem(atPath: buildDir.appendingPathComponent(name).path) else { continue }
+      let size = (attrs[.size] as? NSNumber)?.uint64Value ?? 0
+      let mtime = (attrs[.modificationDate] as? Date)?.timeIntervalSince1970 ?? 0
+      parts.append("\(name):\(size):\(Int(mtime))")
     }
-    return "\(count)-\(total)-\(Int(latest))"
+    for name in ["installation.yaml", "default.custom.yaml"] {
+      guard let attrs = try? fm.attributesOfItem(atPath: userDir.appendingPathComponent(name).path) else { continue }
+      let size = (attrs[.size] as? NSNumber)?.uint64Value ?? 0
+      let mtime = (attrs[.modificationDate] as? Date)?.timeIntervalSince1970 ?? 0
+      parts.append("\(name):\(size):\(Int(mtime))")
+    }
+    return parts.joined(separator: "|")
   }
 
   /// 拷贝 Sandbox 下 SharedSupport 目录至 AppGroup 下 SharedSupport 目录

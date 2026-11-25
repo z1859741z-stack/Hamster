@@ -88,30 +88,6 @@ public class RimeContext {
   @MainActor
   public lazy var asciiMode: Bool = false
 
-  // MARK: - TODO(临时诊断)：定位后删除
-  /// RIME 启动是否失败（候选栏据此决定是否显示诊断行）。
-  public private(set) var rimeStartFailed = false
-  /// 诊断行文本：组名、RIME 初始化结果、当前方案、ascii_mode、错误。
-  public private(set) var diagnosticText = "诊断：RIME 初始化中…"
-  private let diagnosticTextSubject = PassthroughSubject<String, Never>()
-  public var diagnosticTextPublished: AnyPublisher<String, Never> {
-    diagnosticTextSubject.eraseToAnyPublisher()
-  }
-
-  @MainActor
-  func publishDiagnostic(failed: Bool, schemaId: String?, failure: String?) {
-    rimeStartFailed = failed
-    let group = AppGroupResolver.resolvedGroupName ?? "无"
-    let groupState = AppGroupResolver.isAvailable ? "可用" : "不可用"
-    let mode = asciiMode ? "英" : "中"
-    var text = "组 \(group) \(groupState) | RIME \(failed ? "失败" : "OK") \(schemaId ?? "无方案") \(mode)"
-    if let failure {
-      text += " \(failure)"
-    }
-    diagnosticText = text
-    diagnosticTextSubject.send(text)
-  }
-
   /// 候选字
   @MainActor @Published
   public var suggestions: [CandidateSuggestion] = []
@@ -223,7 +199,6 @@ public extension RimeContext {
   func start(hasFullAccess: Bool) async {
     Rime.shared.setNotificationDelegate(self)
 
-    var failure: String?
     // 无完全访问：组目录只读。先把主 App 在组里部署好的产物（Rime/build 等）
     // 同步到键盘自己的沙盒，再启动引擎；键盘里不触发部署，
     // 引擎要写的东西（用户词典、日志、user.yaml）全部走键盘沙盒。
@@ -231,7 +206,6 @@ public extension RimeContext {
       do {
         try FileManager.syncAppGroupRimeBuildToSandbox()
       } catch {
-        failure = "同步部署产物失败：\(error.localizedDescription)"
         Logger.statistics.error("rime keyboard sync prebuilt error: \(error.localizedDescription)")
       }
     }
@@ -247,18 +221,14 @@ public extension RimeContext {
 
     // 设置初始输入方案
     let (schemaId, schemaOK) = setupRimeInputSchema()
-    if !schemaOK, failure == nil {
-      failure = "选方案失败"
+    if !schemaOK {
+      Logger.statistics.error("rime set schema failed, tried current schema and rime_ice")
     }
+    Logger.statistics.info("rime keyboard started, schema: \(schemaId ?? "none")")
 
     // 默认中文模式
     Rime.shared.asciiMode(false)
     await setAsciiMode(Rime.shared.isAsciiMode())
-
-    if !Rime.shared.isRunning(), failure == nil {
-      failure = "会话未建立"
-    }
-    await publishDiagnostic(failed: failure != nil, schemaId: schemaId, failure: failure)
   }
 
   /// RIME 关闭
@@ -270,6 +240,13 @@ public extension RimeContext {
   /// RIME 部署
   /// 注意：仅可用于主 App 调用
   func deployment(configuration: inout HamsterConfiguration) throws {
+    // 先从当前安装包重新解压内置方案：沙盒里的 SharedSupport 只在首次运行解压，
+    // 已装过的设备不刷新就一直用旧的 hamster.yaml，新版配置（划动符号、中/英键等）
+    // 永远下发不下去。重置（restRime）本来就是这么做的，这里只刷新 SharedSupport，
+    // 不动用户数据目录，学习数据和自定义方案不受影响。
+    // 放 iCloud 复制之前，iCloud 的文件仍能覆盖上去。
+    try FileManager.initSandboxSharedSupportDirectory(override: true)
+
     // 如果开启 iCloud，则先将 iCloud 下文件增量复制到 Sandbox
     if let enableAppleCloud = configuration.general?.enableAppleCloud, enableAppleCloud == true {
       let regex = configuration.general?.regexOnCopyFile ?? []
@@ -319,7 +296,9 @@ public extension RimeContext {
       schemas = Rime.shared.getAvailableRimeSchemas().sorted()
       // 只有新建 default.custom.yaml 文件才会写 schema_list 参数，方案如果已存在则不写，因为复写文件会导致文件中的注释信息丢失。
       if createDefaultCustomFileHandle {
-        let result = Rime.shared.selectRimeSchemas(schemas.map { $0.schemaId })
+        // 只保留雾凇全拼一个方案。以前这里写全部方案，
+        // 后面取 schemas[0]（字母排序）就落到了 double_pinyin。
+        let result = Rime.shared.selectRimeSchemas(["rime_ice"])
         if !result {
           Logger.statistics.warning("rime set select rime schemas false")
         } else {
@@ -329,7 +308,25 @@ public extension RimeContext {
             sharedSupportDir: FileManager.sandboxSharedSupportDirectory.path,
             userDataDir: FileManager.sandboxUserDataDirectory.path
           ), maintenance: true, fullCheck: true)
+          schemas = Rime.shared.getSchemas().sorted()
         }
+      }
+    }
+
+    // 已部署过的设备：schema_list 里还留着双拼等方案时，把它收成仅 rime_ice。
+    // 第一次部署分支里已经写过时，这里直接跳过，不再重复全量重编。
+    if schemas.map({ $0.schemaId }) != ["rime_ice"],
+       Rime.shared.getAvailableRimeSchemas().contains(where: { $0.schemaId == "rime_ice" }) {
+      if Rime.shared.selectRimeSchemas(["rime_ice"]) {
+        // 写完 schema_list 需要重新编译方案词库文件
+        Rime.shared.shutdown()
+        Rime.shared.start(Rime.createTraits(
+          sharedSupportDir: FileManager.sandboxSharedSupportDirectory.path,
+          userDataDir: FileManager.sandboxUserDataDirectory.path
+        ), maintenance: true, fullCheck: true)
+        schemas = Rime.shared.getSchemas().sorted()
+      } else {
+        Logger.statistics.warning("rime set select rime schemas to rime_ice only false")
       }
     }
 
@@ -501,20 +498,36 @@ public extension RimeContext {
 
 public extension RimeContext {
   /// 设置用户输入方案
-  /// 返回选中的方案 ID 与 selectSchema 是否成功：失败会被调用方记进诊断，不再静默。
+  /// 候选顺序：当前方案 → 雾凇全拼 rime_ice → 已选方案列表。
+  /// 主 App 部署后当前方案就是 rime_ice；旧设备还没重新部署时，
+  /// 当前方案若选不上（build 里没有），就落到 rime_ice，不再静默退回 ASCII。
+  /// 返回选中的方案 ID 与 selectSchema 是否成功。
   func setupRimeInputSchema() -> (schemaId: String?, ok: Bool) {
-    let schema: RimeSchema
-    if let currentSchema = currentSchema {
-      schema = currentSchema
-    } else if let first = selectSchemas.first {
-      schema = first
-    } else {
+    var candidates: [RimeSchema] = []
+    if let currentSchema {
+      candidates.append(currentSchema)
+    }
+    let allKnown = schemas + selectSchemas
+    if let ice = allKnown.first(where: { $0.schemaId == "rime_ice" }), !candidates.contains(ice) {
+      candidates.append(ice)
+    }
+    candidates.append(contentsOf: selectSchemas.filter { !candidates.contains($0) })
+    guard !candidates.isEmpty else {
       Logger.statistics.error("rime select schemas is empty.")
       return (nil, false)
     }
-    let handle = Rime.shared.setSchema(schema.schemaId)
-    Logger.statistics.info("self.rimeEngine set schema: \(schema.schemaName), handle = \(handle)")
-    return (schema.schemaId, handle)
+    for schema in candidates {
+      let handle = Rime.shared.setSchema(schema.schemaId)
+      Logger.statistics.info("self.rimeEngine set schema: \(schema.schemaName), handle = \(handle)")
+      if handle {
+        if currentSchema?.schemaId != schema.schemaId {
+          self.currentSchema = schema
+        }
+        return (schema.schemaId, true)
+      }
+    }
+    Logger.statistics.error("rime set schema failed, tried: \(candidates.map { $0.schemaId })")
+    return (candidates.first?.schemaId, false)
   }
 
   /// 切换最近一次输入方案
