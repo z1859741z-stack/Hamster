@@ -509,13 +509,23 @@ public class KeyboardContext: ObservableObject {
   }
 
   // 空格按钮加载文本
+  // 配置为空时按键盘类型分流：中文键盘“空格”，其他键盘 "space"
   var loadingTextForSpaceButton: String {
-    hamsterConfiguration?.keyboard?.loadingTextForSpaceButton ?? ""
+    if let text = hamsterConfiguration?.keyboard?.loadingTextForSpaceButton, !text.isEmpty { return text }
+    return defaultSpaceButtonText
   }
 
   // 空格按钮长显文本
+  // 配置为空时按键盘类型分流：中文键盘“空格”，其他键盘 "space"
   var labelTextForSpaceButton: String {
-    hamsterConfiguration?.keyboard?.labelTextForSpaceButton ?? ""
+    if let text = hamsterConfiguration?.keyboard?.labelTextForSpaceButton, !text.isEmpty { return text }
+    return defaultSpaceButtonText
+  }
+
+  /// 空格键默认文字：中文键盘“空格”，其他键盘 "space"。
+  /// 注意：点“中/英”只改 RIME 的 asciiMode，不改 keyboardType，所以中文键盘上切英文后仍显示“空格”；如需跟随须另做，见 commit 说明。
+  private var defaultSpaceButtonText: String {
+    keyboardType.isChinese ? "空格" : "space"
   }
 
   // 空格按钮长显为当前输入方案

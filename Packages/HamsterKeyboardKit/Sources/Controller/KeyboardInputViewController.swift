@@ -524,12 +524,29 @@ open class KeyboardInputViewController: UIInputViewController, KeyboardControlle
           }
         }
         self.rimeContext.reset()
-        self.insertTextPatch(symbol.char)
+        self.insertSymbolChar(symbol.char)
       }
       return
     }
 
-    self.insertTextPatch(symbol.char)
+    self.insertSymbolChar(symbol.char)
+  }
+
+  /// 上屏一个符号键的字符。
+  /// 中文数字/符号层（chineseNumeric / chineseSymbolic）上，单个 ASCII 标点
+  /// 先走 RIME 全角转换（- / $ @ . 等按方案标点表转全角）；数字 0-9、字母、
+  /// 非 ASCII 字符、英文层一律直接上屏。RIME 没接住时回落直接上屏。
+  /// 注：中/英切换只改 RIME asciiMode，asciiMode 下标点转换器自动用半角，
+  /// 所以英文模式走同一条路结果仍是半角。
+  private func insertSymbolChar(_ char: String) {
+    if keyboardContext.keyboardType == .chineseNumeric || keyboardContext.keyboardType == .chineseSymbolic,
+       char.count == 1,
+       let scalar = char.unicodeScalars.first,
+       scalar.value < 128,
+       CharacterSet.punctuationCharacters.contains(scalar) {
+      if rimeContext.tryHandleInputText(char) { return }
+    }
+    self.insertTextPatch(char)
   }
 
   open func insertText(_ text: String) {

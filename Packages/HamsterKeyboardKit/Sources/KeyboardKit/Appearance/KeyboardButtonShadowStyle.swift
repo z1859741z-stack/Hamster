@@ -27,9 +27,10 @@ public struct KeyboardButtonShadowStyle: Equatable {
   public var color: UIColor
     
   /**
-   The size of the shadow.
-   
-   阴影的大小。
+   The size of the shadow, in points.
+
+   阴影的大小（单位 pt）。渲染时同时用作垂直偏移和模糊半径：
+   系统式柔和阴影向下偏移 size、模糊半径 size，默认 1。
    */
   public var size: CGFloat
   

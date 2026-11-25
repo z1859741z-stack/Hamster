@@ -49,8 +49,8 @@ public class NumericNineGridKeyboard: KeyboardTouchView, UICollectionViewDelegat
 
   /// 符号列表容器视图
   private lazy var symbolsListContainerView: UIView = {
-    // 九宫格自身的 insets
-    let insets = keyboardLayoutProvider.insets
+    // 与数字键同一套边距（纵向 5.5pt、横向 3pt），符号列上下与数字键内容区对齐
+    let insets = layoutConfig.buttonInsets
 
     let container = UIView(frame: .zero)
     container.translatesAutoresizingMaskIntoConstraints = false

@@ -97,7 +97,9 @@ open class StandardKeyboardBehavior: KeyboardBehavior {
    */
   public var backspaceRange: DeleteBackwardRange {
     let duration = repeatGestureTimer.duration ?? 0
-    return duration > 3 ? .word : .character
+    // 按住约 2 秒后切按词删。2 秒是公开资料最一致的说法（多处写 1–2 秒、约 2 秒切词），
+    // 不是官方文档数字，须真机核对。
+    return duration > 2 ? .word : .character
   }
 
   /**

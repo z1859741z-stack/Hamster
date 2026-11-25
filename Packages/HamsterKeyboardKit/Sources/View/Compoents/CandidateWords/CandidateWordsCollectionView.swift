@@ -234,7 +234,8 @@ extension CandidateWordsCollectionView: UICollectionViewDelegateFlowLayout {
   public func collectionView(_ collectionView: UICollectionView, layout collectionViewLayout: UICollectionViewLayout, sizeForItemAt indexPath: IndexPath) -> CGSize {
     let isVerticalLayout: Bool = !self.candidatesViewState.isCollapse()
     let heightOfCodingArea: CGFloat = keyboardContext.enableEmbeddedInputMode ? 0 : keyboardContext.heightOfCodingArea
-    let heightOfToolbar: CGFloat = keyboardContext.heightOfToolbar - heightOfCodingArea - 6
+    // 候选 cell 上下各留 1pt：工具栏 40pt − 拼音行 14pt − 2pt = 24pt，18pt 候选字行高约 21.6pt
+    let heightOfToolbar: CGFloat = keyboardContext.heightOfToolbar - heightOfCodingArea - 2
 
     guard indexPath.item < rimeContext.suggestions.count else { return .zero }
     let candidate = rimeContext.suggestions[indexPath.item]

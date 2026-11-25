@@ -67,7 +67,8 @@ open class NumericNineGridKeyboardLayoutProvider: KeyboardLayoutProvider {
 
   open func item(for action: KeyboardAction, row: Int, index: Int, context: KeyboardContext) -> KeyboardLayoutItem {
     let size = itemSize(for: action, row: row, index: index, context: context)
-    let insets = Self.insets
+    // 与标准键盘同一套边距（纵向 5.5pt、横向 3pt），使九宫格键高 45pt、纵向间距 11pt 与标准键一致
+    let insets = itemInsets(for: action, row: row, index: index, context: context)
     let swipes = itemSwipes(for: action, row: row, index: index, context: context)
     return KeyboardLayoutItem(action: action, size: size, insets: insets, swipes: swipes)
   }

@@ -61,7 +61,11 @@ open class StandardKeyboardAppearance: KeyboardAppearance {
   /// 应用于整个键盘的背景样式。
   open var backgroundStyle: KeyboardBackgroundStyle {
     var style = KeyboardBackgroundStyle.standard
-    style.backgroundColor = UIColor.white.withAlphaComponent(0.001)
+    // 接上标准键盘背景色资产（浅色 0.835/0.839/0.867，深色 0.173），替代近乎透明的白 0.001。
+    // 不直接用动态色：扩展的 traitCollection 可能滞后，改按 hasDarkColorScheme 定向解析；
+    // 外观切换时 KeyboardRootView 的 trait 监听会重新调 setupAppearance()。
+    let interfaceStyle: UIUserInterfaceStyle = keyboardContext.hasDarkColorScheme ? .dark : .light
+    style.backgroundColor = hamsterUIColor.standardKeyboardBackground.resolvedColor(with: UITraitCollection(userInterfaceStyle: interfaceStyle))
 
     // 开启键盘配色
     if let hamsterColor = hamsterColor() {

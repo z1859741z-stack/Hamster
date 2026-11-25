@@ -1,11 +1,5 @@
 # 通用配置
 general:
-  enableAppleCloud: false
-  regexOnCopyFile:
-  #    - ^.*[.]userdb.*$
-  #    - ^.*build.*$
-  #    - ^.*SharedSupport.*$
-  #    - ^.*[.]bin$
   # 内置文本编辑器参数: 是否自动换行
   textEditorLineWrappingEnabled: true
 
@@ -18,9 +12,10 @@ toolbar:
   # 显示键盘 dissmiss 按钮
   displayKeyboardDismissButton: false
   # 工具栏总高度
-  heightOfToolbar: 50
+  # 系统建议栏同高 40pt：拼音行 14pt（12pt 字）+ 候选 cell 24pt（18pt 字，上下各留 1pt）
+  heightOfToolbar: 40
   # 拼写区高度(剩余高度由候选文字占用)
-  heightOfCodingArea: 10
+  heightOfCodingArea: 14
   # 拼写区字体大小
   codingAreaFontSize: 12
   # 候选文字索引字体大小
@@ -56,9 +51,9 @@ keyboard:
   # 显示按键气泡
   displayButtonBubbles: true
   # 启用按键声
-  enableKeySounds: true
+  enableKeySounds: false
   # 启用触控反馈
-  enableHapticFeedback: false
+  enableHapticFeedback: true
   # 反馈强度
   hapticFeedbackIntensity: 3
   # 启用分号按键
@@ -115,7 +110,8 @@ keyboard:
     - "[]"
     - ()
     - "“”"
-  enableSymbolKeyboard: true
+  # 注：第③步改回标准 #+= 层。分类符号键盘代码未删，改回 true 即可恢复。
+  enableSymbolKeyboard: false
   lockForSymbolKeyboard: false
 
   # 是否启用空格加载文本

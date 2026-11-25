@@ -11,7 +11,6 @@ import UIKit
 
 /// 键盘键盘
 public class KeyboardButton: UIControl {
-  typealias ButtonBounds = CGSize
 
   // MARK: - Properties
 
@@ -113,12 +112,6 @@ public class KeyboardButton: UIControl {
       keyboardContext: keyboardContext,
       rimeContext: rimeContext)
     return contentView
-  }()
-
-  // 按钮底部立体阴影
-  lazy var underShadowShape: CAShapeLayer = {
-    let layer = CAShapeLayer()
-    return layer
   }()
 
   // 输入按键气泡
@@ -236,9 +229,7 @@ public class KeyboardButton: UIControl {
 
       // 宽度为 0 时，不在计算 frame
       if oldBounds.width == .zero || oldBounds.height == .zero {
-        if enableButtonUnderBorder {
-          underShadowShape.path = .none
-        }
+        buttonContentView.layer.shadowOpacity = 0
         buttonContentView.frame = .zero
         return
       }
@@ -254,12 +245,8 @@ public class KeyboardButton: UIControl {
       // Logger.statistics.debug("button content row: \(self.row), column: \(self.column), frame: \(bounds.width) \(bounds.height)")
       if let cornerRadius = normalButtonStyle.cornerRadius {
         buttonContentView.layer.cornerRadius = cornerRadius
-        if enableButtonUnderBorder {
-          buttonContentView.layer.addSublayer(underShadowShape)
-          underShadowShape.path = calculatorUnderPath(bounds: CGSize(width: bounds.width, height: bounds.height + 1), cornerRadius: cornerRadius).cgPath
-          underShadowShape.fillColor = normalButtonStyle.shadow?.color.cgColor
-        }
       }
+      updateButtonShadow(using: normalButtonStyle, pressed: isHighlighted)
       CATransaction.commit()
     }
 
@@ -287,16 +274,35 @@ public class KeyboardButton: UIControl {
       buttonContentView.layer.borderWidth = style.border?.size ?? 1
     }
 
+    // 按下时阴影隐藏（按键下沉），松开恢复
+    updateButtonShadow(using: style, pressed: isPressed)
+
     if isPressed {
-      if enableButtonUnderBorder {
-        underShadowShape.opacity = 0
-      }
       addInputCallout()
     } else {
-      if enableButtonUnderBorder {
-        underShadowShape.opacity = 1
-      }
       removeInputCallout()
+    }
+  }
+
+  /// 按键底部柔和阴影（系统式）：用内容视图图层的原生阴影，代替原来 1pt 硬底边。
+  /// 阴影色取 style.shadow.color（浅色黑 30% / 深色黑 70%，透明度已在颜色里）；
+  /// 垂直偏移与模糊半径都取 style.shadow.size（默认 1pt），不另造数字。
+  /// enableButtonUnderBorder 关掉则无阴影。
+  func updateButtonShadow(using style: KeyboardButtonStyle, pressed: Bool) {
+    let layer = buttonContentView.layer
+    guard enableButtonUnderBorder, let shadow = style.shadow else {
+      layer.shadowOpacity = 0
+      layer.shadowPath = nil
+      return
+    }
+    layer.shadowColor = shadow.color.cgColor
+    layer.shadowOpacity = pressed ? 0 : 1
+    layer.shadowOffset = CGSize(width: 0, height: shadow.size)
+    layer.shadowRadius = shadow.size
+    if let cornerRadius = style.cornerRadius {
+      layer.shadowPath = UIBezierPath(roundedRect: buttonContentView.bounds, cornerRadius: cornerRadius).cgPath
+    } else {
+      layer.shadowPath = nil
     }
   }
 
@@ -346,35 +352,5 @@ extension KeyboardButton {
     if inputCalloutView.superview != nil {
       inputCalloutView.removeFromSuperview()
     }
-  }
-}
-
-// MARK: - background view style
-
-extension KeyboardButton {
-  /// 按键 underPath 缓存
-  static var underPathCache = [ButtonBounds: UIBezierPath]()
-
-  /// 按钮底部深色样式路径
-  func calculatorUnderPath(bounds: CGSize, cornerRadius: CGFloat) -> UIBezierPath {
-    let key = add(bounds: bounds, cornerRadius: cornerRadius)
-    // 缓存 PATH
-    if let path = Self.underPathCache[key] {
-      return path
-    }
-    let underPath = CAShapeLayer.underPath(size: bounds, cornerRadius: cornerRadius)
-    Self.underPathCache[key] = underPath
-    return underPath
-  }
-
-  func add(bounds: CGSize, cornerRadius: CGFloat) -> CGSize {
-    CGSize(width: bounds.width + cornerRadius, height: bounds.height + cornerRadius)
-  }
-}
-
-extension CGSize: Hashable {
-  public func hash(into hasher: inout Hasher) {
-    hasher.combine(width)
-    hasher.combine(height)
   }
 }
