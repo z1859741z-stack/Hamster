@@ -23,7 +23,7 @@ struct RimeDeployIntent: AppIntent {
     .requiresAuthentication
   }
 
-  static var description = IntentDescription("仓输入法 - RIME 重新部署")
+  static var description = IntentDescription("耄耋输入法 - RIME 重新部署")
 
   @MainActor
   func perform() async throws -> some ReturnsValue {

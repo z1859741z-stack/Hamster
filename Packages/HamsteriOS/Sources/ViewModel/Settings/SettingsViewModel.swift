@@ -56,15 +56,30 @@ public class SettingsViewModel: ObservableObject {
     isKeyboardEnabled ? "已启用" : "未启用"
   }
 
-  /// 完全访问状态：读键盘开完全访问时写的时间戳标记（7 天内有效）。
-  /// 没开完全访问时键盘写不进组容器，所以没有标记=关。方案 A 不需要开。
-  /// 注意：关掉完全访问后标记最多残留 7 天，这期间仍会显示“开”。
+  /// 完全访问状态：读键盘每次弹出时写的记录（{是否开完全访问, 时间}）。
+  /// 没有记录=没开过（最常见的情况），显示「未开启」；有「开」的记录显示「已开启」。
+  /// 注意：关掉完全访问后键盘写不进组、更新不了记录，这行会继续显示旧的「已开启」和上次检测时间（已知限制，不绕路）。
   var fullAccessStatusText: String {
-    if let lastActive = UserDefaults.hamster.fullAccessLastActiveAt,
-       Date().timeIntervalSince(lastActive) <= 7 * 24 * 60 * 60 {
-      return "开"
+    guard let record = UserDefaults.hamster.fullAccessRecord else { return "未开启" }
+    return record.value ? "已开启" : "未开启"
+  }
+
+  /// 上次检测时间的格式（例：2026年11月25日 17:30）。
+  private static let fullAccessTimeFormatter: DateFormatter = {
+    let formatter = DateFormatter()
+    formatter.locale = Locale(identifier: "zh_CN")
+    formatter.dateFormat = "yyyy年M月d日 HH:mm"
+    return formatter
+  }()
+
+  /// “键盘”区 footer：完全访问开时附上次检测时间；其余文案按定的小字。
+  var keyboardSectionFooter: String {
+    var text = "键盘状态在每次回到本 App 时重新检查。未启用时：设置 → 通用 → 键盘 → 键盘 → 添加新键盘，选择耄耋输入法。"
+    if let record = UserDefaults.hamster.fullAccessRecord, record.value {
+      text += "完全访问已开启，上次检测 \(Self.fullAccessTimeFormatter.string(from: record.date))。"
     }
-    return "关（方案 A 不需要）"
+    text += "不开也能正常打字，只是可能没有按键震动。改了设置后弹一次键盘再回来看。"
+    return text
   }
 
   /// 打开本 App 在系统设置里的页面，再手动进 通用 → 键盘 → 键盘 → 添加新键盘。
@@ -79,7 +94,7 @@ public class SettingsViewModel: ObservableObject {
   private func makeKeyboardSection() -> SettingSectionModel {
     SettingSectionModel(
       title: "键盘",
-      footer: "键盘状态在每次回到本 App 时重新检查。未启用时：设置 → 通用 → 键盘 → 键盘 → 添加新键盘，选择 Hamster。完全访问：方案 A 不需要开。",
+      footer: keyboardSectionFooter,
       items: [
         .init(
           icon: UIImage(systemName: "keyboard")!,
@@ -89,6 +104,7 @@ public class SettingsViewModel: ObservableObject {
           navigationLinkLabel: { [unowned self] in keyboardStatusText }
         ),
         .init(
+          icon: UIImage(systemName: UserDefaults.hamster.fullAccessRecord?.value == true ? "lock.open" : "lock")!,
           text: "完全访问",
           accessoryType: .none,
           type: .navigation,

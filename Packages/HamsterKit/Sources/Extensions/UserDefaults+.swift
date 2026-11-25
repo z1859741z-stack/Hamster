@@ -298,15 +298,23 @@ public extension UserDefaults {
     }
   }
 
-  /// 完全访问开启时键盘写的时间戳，供主 App 判断完全访问是开还是关。
-  /// 只有开完全访问时键盘才能写进组容器；没开时写操作不生效，所以没有标记=关。
-  /// 注意：关掉完全访问后标记最多残留 7 天，这期间仍会显示“开”。
-  var fullAccessLastActiveAt: Date? {
+  /// 完全访问记录：键盘每次弹出时写 {value: hasFullAccess, date: 写入时间}。
+  /// 注意：无完全访问时键盘写不进组容器，false 记录写不落地；
+  /// 关掉完全访问后记录停留在最后一次开着的状态，主 App 那行会继续显示旧的「已开启」和上次检测时间（已知限制，不绕路）。
+  var fullAccessRecord: (value: Bool, date: Date)? {
     get {
-      object(forKey: Self.fullAccessLastActiveAtKey) as? Date
+      guard let dict = dictionary(forKey: Self.fullAccessRecordKey),
+            let value = dict["value"] as? Bool,
+            let date = dict["date"] as? Date
+      else { return nil }
+      return (value, date)
     }
     set {
-      set(newValue, forKey: Self.fullAccessLastActiveAtKey)
+      if let record = newValue {
+        set(["value": record.value, "date": record.date], forKey: Self.fullAccessRecordKey)
+      } else {
+        removeObject(forKey: Self.fullAccessRecordKey)
+      }
     }
   }
 }
@@ -363,7 +371,7 @@ extension UserDefaults {
   private static let currentSchemaForKey = "com.ihsiao.apps.Hamster.UserDefault.keys.currentSchema"
   private static let latestSchemaForKey = "com.ihsiao.apps.Hamster.UserDefault.keys.latestSchemaForKey"
   private static let hotKeys = "com.ihsiao.apps.Hamster.UserDefault.keys.hotKeys"
-  private static let fullAccessLastActiveAtKey = "com.ihsiao.apps.Hamster.UserDefaults.fullAccessLastActiveAt"
+  private static let fullAccessRecordKey = "com.ihsiao.apps.Hamster.UserDefaults.fullAccessRecord"
 
   // MARK: - 补丁
 

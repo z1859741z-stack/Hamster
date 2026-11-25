@@ -39,6 +39,8 @@ public extension SettingsViewController {
 
   override func viewDidAppear(_ animated: Bool) {
     super.viewDidAppear(animated)
+    // App 内更新检查（公开仓库 Releases API，无 token；一天最多查一次、同一版本只提醒一次）。
+    AppUpdateChecker.shared.checkAndPromptIfNeeded(from: self)
     Task {
       do {
         try await self.settingsViewModel.loadAppData()

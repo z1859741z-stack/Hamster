@@ -13,7 +13,7 @@
 			<key>PrimaryLanguage</key>
 			<string>zh-Hans</string>
 			<key>RequestsOpenAccess</key>
-			<false/>
+			<true/><!-- 只让系统设置里出现完全访问开关，用户仍需手动开；不开也能正常打字。开了完全访问键盘也不联网。 -->
 		</dict>
 		<key>NSExtensionPointIdentifier</key>
 		<string>com.apple.keyboard-service</string>

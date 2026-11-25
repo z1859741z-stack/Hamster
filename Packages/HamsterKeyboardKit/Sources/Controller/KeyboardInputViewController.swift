@@ -895,12 +895,10 @@ private extension KeyboardInputViewController {
   func setupRIME() {
     // 异步 RIME 引擎启动
     Task.detached { [unowned self] in
-      // 完全访问标记：只有开完全访问时键盘才能写进组容器；
-      // 没开时写操作不生效，标记缺失=关。主 App 读它显示完全访问状态。
-      // （旧的心跳标记已删：无完全访问时键盘写不进组，那条路不通。）
-      if await self.hasFullAccess {
-        UserDefaults.hamster.fullAccessLastActiveAt = Date()
-      }
+      // 完全访问记录：每次弹出都读 hasFullAccess、连时间一起写进组。
+      // 注意：无完全访问时键盘写不进组容器，false 记录写不落地；
+      // 关掉完全访问后记录停留在最后一次开着的状态（已知限制）。
+      UserDefaults.hamster.fullAccessRecord = (value: await self.hasFullAccess, date: Date())
       // 弹出计时起点（viewWillAppear 里已记好）。
       let popupStart = await self.popupStartTime
 
