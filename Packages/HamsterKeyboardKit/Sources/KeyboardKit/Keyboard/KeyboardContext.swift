@@ -296,13 +296,24 @@ public class KeyboardContext: ObservableObject {
 
   // MARK: - Hamster Configuration
 
+  /// 上次成功重读的配置文件修改时间；没变就跳过重读，省掉约 28ms。
+  /// 写盘是 removeItem + createFile（每次建新文件），mtime 一定会更新，开关改动不会漏读。
+  private var hamsterConfigurationFileModificationDate: Date?
+
   /// 从组里 build/hamster.plist 重读配置（每次键盘出现时调，不要只依赖 init 时读的那一份）。
-  /// 读失败时保留上一次的配置，不清空。
+  /// 文件没变时直接跳过；读失败时保留上一次的配置，不清空。
   func reloadHamsterConfiguration() {
+    let plistURL = FileManager.appGroupUserDataDirectoryURL.appendingPathComponent("/build/hamster.plist")
+    // mtime 没变就跳过；文件不存在或首次运行（缓存为空）时正常重读。
+    if let mtime = try? FileManager.default.attributesOfItem(atPath: plistURL.path)[.modificationDate] as? Date,
+       mtime == hamsterConfigurationFileModificationDate {
+      return
+    }
     do {
       // plist 格式大约 28.48 ms/ 27.59 ms（yaml 约 122 ms，json 约 40 ms）
-      let data = try Data(contentsOf: FileManager.appGroupUserDataDirectoryURL.appendingPathComponent("/build/hamster.plist"))
+      let data = try Data(contentsOf: plistURL)
       self.hamsterConfiguration = try PropertyListDecoder().decode(HamsterConfiguration.self, from: data)
+      hamsterConfigurationFileModificationDate = try? FileManager.default.attributesOfItem(atPath: plistURL.path)[.modificationDate] as? Date
     } catch {
       Logger.statistics.error("load build/hamster.yaml error: \(error.localizedDescription)")
     }

@@ -50,8 +50,8 @@ open class KeyboardInputViewController: UIInputViewController, KeyboardControlle
     // 弹出计时起点：显示弹出耗时开关开时，从这里算到引擎就绪。
     popupStartTime = CFAbsoluteTimeGetCurrent()
     setupRIME()
-    // 每次弹出前先同步重读组配置（读 build/hamster.plist 约 28ms），
-    // 液态玻璃开关等偏好以这次为准；setupRIME 里的异步重读不变（引擎启动那条路还用它）。
+    // 每次弹出前同步重读组配置：文件没变就跳过（reload 里按 mtime 判断，约 28ms 省掉），
+    // 只有变了才重读，液态玻璃开关等偏好以这次为准；setupRIME 里的异步重读不变（引擎启动那条路还用它）。
     keyboardContext.reloadHamsterConfiguration()
     viewWillSetupKeyboard()
     viewWillSyncWithContext()
@@ -125,6 +125,8 @@ open class KeyboardInputViewController: UIInputViewController, KeyboardControlle
 
     // 液态玻璃背景：整个键盘共用一个玻璃视图（放最底层），按键和候选栏的底色已改半透明。
     applyLiquidGlassBackgroundIfNeeded()
+    // 候选栏玻璃：每次弹出时先移除旧的、再按开关决定加不加（和键盘背景同一处调）。
+    keyboardRootView.applyToolbarGlassIfNeeded()
   }
 
   deinit {
