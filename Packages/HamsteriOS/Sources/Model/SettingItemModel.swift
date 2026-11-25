@@ -20,6 +20,8 @@ public struct SettingItemModel: Hashable, Identifiable {
   public var type: SettingType
   public var toggleValue: (() -> Bool)?
   public var toggleHandled: ((Bool) -> Void)?
+  /// 开关类行是否可用（默认可用）。液态玻璃开关在 iOS 26 以下置灰用。
+  public var isEnabled: Bool
   public var navigationAction: (() -> Void)?
   public var navigationLinkLabel: () -> String
   public var textValue: (() -> String)?
@@ -49,6 +51,7 @@ public struct SettingItemModel: Hashable, Identifiable {
     type: SettingType = .navigation,
     toggleValue: (() -> Bool)? = nil,
     toggleHandled: ((Bool) -> Void)? = nil,
+    isEnabled: Bool = true,
     navigationLinkLabel: @escaping (() -> String) = { "" },
     navigationAction: (() -> Void)? = nil,
     textValue: (() -> String)? = nil,
@@ -75,6 +78,7 @@ public struct SettingItemModel: Hashable, Identifiable {
     self.favoriteButton = favoriteButton
     self.toggleValue = toggleValue
     self.toggleHandled = toggleHandled
+    self.isEnabled = isEnabled
     self.navigationLinkLabel = navigationLinkLabel
     self.navigationAction = navigationAction
     self.textValue = textValue

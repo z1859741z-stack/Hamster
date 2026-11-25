@@ -59,6 +59,8 @@ class ToggleTableViewCell: NibLessTableViewCell {
   override func prepareForReuse() {
     super.prepareForReuse()
     label.text = ""
+    switchView.isEnabled = true
+    label.textColor = .label
   }
 
   func updateWithSettingItem(_ item: SettingItemModel) {
@@ -76,6 +78,9 @@ class ToggleTableViewCell: NibLessTableViewCell {
     guard state.settingItemModel != nil else { return }
 
     label.text = state.settingItemModel?.text
+    let isEnabled = state.settingItemModel?.isEnabled ?? true
+    label.textColor = isEnabled ? .label : .secondaryLabel
+    switchView.isEnabled = isEnabled
     if let toggleValue = state.settingItemModel?.toggleValue {
       let value = toggleValue()
       switchView.setOn(value, animated: false)

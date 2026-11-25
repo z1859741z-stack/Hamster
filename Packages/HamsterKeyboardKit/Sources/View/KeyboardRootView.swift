@@ -231,10 +231,28 @@ class KeyboardRootView: NibLessView {
   override func constructViewHierarchy() {
     if keyboardContext.enableToolbar {
       addSubview(toolbarView)
+      addToolbarGlassIfNeeded()
       addSubview(primaryKeyboardView)
     } else {
       addSubview(primaryKeyboardView)
     }
+  }
+
+  /// 候选栏单独一个玻璃视图（液态玻璃开且 iOS 26+ 时），插在工具栏最底层。
+  /// 整个键盘的玻璃背景在 controller 那层共用一个，这里只给候选栏再加一层，
+  /// 让候选区和按键区各有明确的玻璃面；候选文字颜色走系统语义色，浅色壁纸下也看得清。
+  private func addToolbarGlassIfNeeded() {
+    guard #available(iOS 26.0, *) else { return }
+    guard keyboardContext.hamsterConfiguration?.keyboard?.liquidGlassStyle == true else { return }
+    let effectView = UIVisualEffectView(effect: UIGlassEffect())
+    effectView.translatesAutoresizingMaskIntoConstraints = false
+    toolbarView.insertSubview(effectView, at: 0)
+    NSLayoutConstraint.activate([
+      effectView.topAnchor.constraint(equalTo: toolbarView.topAnchor),
+      effectView.bottomAnchor.constraint(equalTo: toolbarView.bottomAnchor),
+      effectView.leadingAnchor.constraint(equalTo: toolbarView.leadingAnchor),
+      effectView.trailingAnchor.constraint(equalTo: toolbarView.trailingAnchor),
+    ])
   }
 
   /// 激活约束

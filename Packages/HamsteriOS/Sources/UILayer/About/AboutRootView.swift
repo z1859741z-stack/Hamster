@@ -66,7 +66,7 @@ class AboutRootView: NibLessView {
     containerView.frame = CGRect(x: 0, y: 0, width: bounds.width, height: 150)
     containerView.addSubview(headerStackView)
 
-    let gesture = UITapGestureRecognizer(target: self, action: #selector(copyAppVersion))
+    let gesture = UITapGestureRecognizer(target: self, action: #selector(checkUpdateManually))
     containerView.addGestureRecognizer(gesture)
 
     return containerView
@@ -121,9 +121,21 @@ class AboutRootView: NibLessView {
     }
   }
 
-  @objc func copyAppVersion() {
-    UIPasteboard.general.string = AppInfo.appVersion
-    ProgressHUD.success("复制成功", interaction: false, delay: 1.5)
+  /// 点版本号手动检查更新：有新版弹「发现新版」，已是最新提示「已是最新」，网络失败也提示。
+  /// （原来点按是复制版本号，已改成手动检查。）
+  @objc func checkUpdateManually() {
+    guard let viewController = owningViewController else { return }
+    AppUpdateChecker.shared.checkManually(from: viewController)
+  }
+
+  /// 沿响应链找宿主 viewController（关于页由 AboutViewController 承载）。
+  private var owningViewController: UIViewController? {
+    var responder: UIResponder? = self
+    while let next = responder?.next {
+      if let viewController = next as? UIViewController { return viewController }
+      responder = next
+    }
+    return nil
   }
 }
 

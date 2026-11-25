@@ -86,6 +86,24 @@ public class SimplePreferencesViewModel {
     }
   }
 
+  // MARK: - 液态玻璃样式（新增；默认关，仅 iOS 26+ 可用）
+
+  /// 是否 iOS 26 及以上（液态玻璃要 UIGlassEffect，只在 iOS 26+ 有）。
+  public static var supportsLiquidGlass: Bool {
+    if #available(iOS 26.0, *) { return true }
+    return false
+  }
+
+  public var liquidGlassStyle: Bool {
+    get {
+      HamsterAppDependencyContainer.shared.configuration.keyboard?.liquidGlassStyle ?? false
+    }
+    set {
+      HamsterAppDependencyContainer.shared.configuration.keyboard?.liquidGlassStyle = newValue
+      HamsterAppDependencyContainer.shared.applicationConfiguration.keyboard?.liquidGlassStyle = newValue
+    }
+  }
+
   // MARK: - 设置表
 
   public lazy var settings: [SettingSectionModel] = [
@@ -138,6 +156,19 @@ public class SimplePreferencesViewModel {
           toggleHandled: { [unowned self] in
             emojiCandidateEnabled = $0
           }),
+      ]),
+    .init(
+      title: "外观",
+      footer: "液态玻璃样式：开启后按键和候选栏用系统液态玻璃底，尽量贴近系统键盘。需要 iOS 26 及以上，低版本上开关不可用。键盘每次弹出时重读本开关。",
+      items: [
+        .init(
+          text: "液态玻璃样式",
+          type: .toggle,
+          toggleValue: { [unowned self] in liquidGlassStyle },
+          toggleHandled: { [unowned self] in
+            liquidGlassStyle = $0
+          },
+          isEnabled: Self.supportsLiquidGlass),
       ]),
     .init(
       title: "调试",

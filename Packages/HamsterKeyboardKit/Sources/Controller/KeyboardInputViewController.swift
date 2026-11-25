@@ -50,6 +50,9 @@ open class KeyboardInputViewController: UIInputViewController, KeyboardControlle
     // 弹出计时起点：显示弹出耗时开关开时，从这里算到引擎就绪。
     popupStartTime = CFAbsoluteTimeGetCurrent()
     setupRIME()
+    // 每次弹出前先同步重读组配置（读 build/hamster.plist 约 28ms），
+    // 液态玻璃开关等偏好以这次为准；setupRIME 里的异步重读不变（引擎启动那条路还用它）。
+    keyboardContext.reloadHamsterConfiguration()
     viewWillSetupKeyboard()
     viewWillSyncWithContext()
 
@@ -119,6 +122,9 @@ open class KeyboardInputViewController: UIInputViewController, KeyboardControlle
       keyboardRootView.leadingAnchor.constraint(equalTo: view.leadingAnchor),
       keyboardRootView.trailingAnchor.constraint(equalTo: view.trailingAnchor),
     ])
+
+    // 液态玻璃背景：整个键盘共用一个玻璃视图（放最底层），按键和候选栏的底色已改半透明。
+    applyLiquidGlassBackgroundIfNeeded()
   }
 
   deinit {
@@ -271,6 +277,35 @@ open class KeyboardInputViewController: UIInputViewController, KeyboardControlle
 
   /// 弹出耗时提示 label（调试开关开时才创建，3 秒后自动消失）。
   private var latencyToastLabel: UILabel?
+
+  /// 液态玻璃背景视图（整个键盘共用一个，iOS 26+ 且开关开时才创建）。
+  private var liquidGlassBackgroundView: UIVisualEffectView?
+
+  /// 液态玻璃是否开启：开关开且系统 iOS 26+（viewWillAppear 里已同步重读配置）。
+  private var isLiquidGlassEnabled: Bool {
+    guard #available(iOS 26.0, *) else { return false }
+    return keyboardContext.hamsterConfiguration?.keyboard?.liquidGlassStyle ?? false
+  }
+
+  /// 液态玻璃背景：整个键盘共用一个 UIVisualEffectView（UIGlassEffect），插在最底层；
+  /// 旧的先移除，避免多次弹出叠加。关时不创建。
+  private func applyLiquidGlassBackgroundIfNeeded() {
+    liquidGlassBackgroundView?.removeFromSuperview()
+    liquidGlassBackgroundView = nil
+    guard isLiquidGlassEnabled else { return }
+    if #available(iOS 26.0, *) {
+      let effectView = UIVisualEffectView(effect: UIGlassEffect())
+      effectView.translatesAutoresizingMaskIntoConstraints = false
+      view.insertSubview(effectView, at: 0)
+      NSLayoutConstraint.activate([
+        effectView.topAnchor.constraint(equalTo: view.topAnchor),
+        effectView.bottomAnchor.constraint(equalTo: view.bottomAnchor),
+        effectView.leadingAnchor.constraint(equalTo: view.leadingAnchor),
+        effectView.trailingAnchor.constraint(equalTo: view.trailingAnchor),
+      ])
+      liquidGlassBackgroundView = effectView
+    }
+  }
 
   /**
    按给定配置生成触感与按键音设置。
