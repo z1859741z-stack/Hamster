@@ -20,6 +20,12 @@ public enum SettingsSubView: String {
   
   /// 键盘设置页面
   case keyboardSettings
+
+  /// 常用语页面
+  case customPhrase
+
+  /// 精简偏好设置页面
+  case simplePreferences
   
   /// 键盘配色页面
   case colorSchema

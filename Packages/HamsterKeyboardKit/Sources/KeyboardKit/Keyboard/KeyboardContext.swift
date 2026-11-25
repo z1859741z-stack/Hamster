@@ -277,19 +277,7 @@ public class KeyboardContext: ObservableObject {
 
     guard let controller = controller else { return }
 
-    do {
-      // 虽然通过 test performance 测试，ZippyJSONDecoder 比 plist 快一些，但通过 Instruments 工具观测，Plist 性能会更好一些
-      // yaml 格式大约 122 ms
-      // self.hamsterConfiguration = try HamsterConfigurationRepositories.shared.loadFromYAML(FileManager.hamsterConfigFileOnAppGroupBuild)
-      // json 格式 40.96 ms/ 35 ms/ 41.76 ms
-//      let data = try Data(contentsOf: FileManager.appGroupUserDataDirectoryURL.appendingPathComponent("/build/hamster.json"))
-//      self.hamsterConfiguration = try ZippyJSONDecoder().decode(HamsterConfiguration.self, from: data)
-      // plist 格式大约 28.48 ms/ 27.59 ms
-      let data = try Data(contentsOf: FileManager.appGroupUserDataDirectoryURL.appendingPathComponent("/build/hamster.plist"))
-      self.hamsterConfiguration = try PropertyListDecoder().decode(HamsterConfiguration.self, from: data)
-    } catch {
-      Logger.statistics.error("load build/hamster.yaml error: \(error.localizedDescription)")
-    }
+    reloadHamsterConfiguration()
 
     // 初始键盘类型
     self.keyboardType = selectKeyboard
@@ -307,6 +295,18 @@ public class KeyboardContext: ObservableObject {
   }
 
   // MARK: - Hamster Configuration
+
+  /// 从组里 build/hamster.plist 重读配置（每次键盘出现时调，不要只依赖 init 时读的那一份）。
+  /// 读失败时保留上一次的配置，不清空。
+  func reloadHamsterConfiguration() {
+    do {
+      // plist 格式大约 28.48 ms/ 27.59 ms（yaml 约 122 ms，json 约 40 ms）
+      let data = try Data(contentsOf: FileManager.appGroupUserDataDirectoryURL.appendingPathComponent("/build/hamster.plist"))
+      self.hamsterConfiguration = try PropertyListDecoder().decode(HamsterConfiguration.self, from: data)
+    } catch {
+      Logger.statistics.error("load build/hamster.yaml error: \(error.localizedDescription)")
+    }
+  }
 
   /// 用户设置的键盘类型
   lazy var selectKeyboard: KeyboardType = {

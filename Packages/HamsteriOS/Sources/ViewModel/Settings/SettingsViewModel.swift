@@ -34,6 +34,22 @@ public class SettingsViewModel: ObservableObject {
     }
   }
 
+  /// 键盘启用状态（读键盘每次弹出时写的心跳）。
+  /// 只能证明键盘曾经启用并运行过，不能证明当前仍处于启用状态。
+  var keyboardStatusText: String {
+    guard let lastActive = UserDefaults.hamster.keyboardLastActiveAt else {
+      return "未启用或未使用过"
+    }
+    return Date().timeIntervalSince(lastActive) <= 7 * 24 * 60 * 60 ? "已启用" : "未启用或未使用过"
+  }
+
+  /// 打开本 App 在系统设置里的页面，再手动进 通用 → 键盘 → 键盘 → 添加新键盘。
+  /// iOS 不给第三方 App 直达键盘列表的公开入口，App-prefs 私有 scheme 在 iOS 27 上不可用。
+  func openSystemSettings() {
+    guard let url = URL.keyboardSettings else { return }
+    _ = UIApplication.shared.open(url)
+  }
+
 
   var tableReloadSubject = PassthroughSubject<Bool, Never>()
   var tableReloadPublished: AnyPublisher<Bool, Never> {
@@ -85,6 +101,25 @@ public class SettingsViewModel: ObservableObject {
   /// 设置选项
   public lazy var sections: [SettingSectionModel] = {
     let sections = [
+      SettingSectionModel(
+        title: "键盘",
+        footer: "未启用时：设置 → 通用 → 键盘 → 键盘 → 添加新键盘，选择 Hamster。键盘每次弹出时都会更新一次状态，这里只能证明键盘曾经启用并运行过，不能证明当前仍处于启用状态。",
+        items: [
+          .init(
+            icon: UIImage(systemName: "keyboard")!,
+            text: "键盘状态",
+            accessoryType: .none,
+            type: .navigation,
+            navigationLinkLabel: { [unowned self] in keyboardStatusText }
+          ),
+          .init(
+            text: "打开系统设置",
+            type: .button,
+            buttonAction: { [unowned self] in
+              openSystemSettings()
+            }
+          ),
+        ]),
       SettingSectionModel(title: "输入相关", items: [
         .init(
           icon: UIImage(systemName: "highlighter")!.withTintColor(.yellow),
@@ -92,6 +127,14 @@ public class SettingsViewModel: ObservableObject {
           accessoryType: .disclosureIndicator,
           navigationAction: { [unowned self] in
             self.mainViewModel.subViewSubject.send(.inputSchema)
+          }
+        ),
+        .init(
+          icon: UIImage(systemName: "text.quote")!,
+          text: "常用语",
+          accessoryType: .disclosureIndicator,
+          navigationAction: { [unowned self] in
+            self.mainViewModel.subViewSubject.send(.customPhrase)
           }
         ),
         .init(
@@ -110,6 +153,14 @@ public class SettingsViewModel: ObservableObject {
           accessoryType: .disclosureIndicator,
           navigationAction: { [unowned self] in
             self.mainViewModel.subViewSubject.send(.keyboardSettings)
+          }
+        ),
+        .init(
+          icon: UIImage(systemName: "slider.horizontal.3")!,
+          text: "偏好设置",
+          accessoryType: .disclosureIndicator,
+          navigationAction: { [unowned self] in
+            self.mainViewModel.subViewSubject.send(.simplePreferences)
           }
         ),
         .init(

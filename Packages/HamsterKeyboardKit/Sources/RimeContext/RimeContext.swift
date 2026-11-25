@@ -194,6 +194,12 @@ public extension RimeContext {
     self.asciiMode = model
   }
 
+  /// 应用 emoji 候选开关（RIME 运行时选项，须在选方案、session 建好之后调，
+  /// 每次键盘出现时由 setupRIME() 重新应用，不用重新部署）。
+  func setEmojiCandidateEnabled(_ enabled: Bool) {
+    Rime.shared.setEmojiEnabled(enabled)
+  }
+
   /// RIME 启动
   /// 注意：仅用于键盘扩展调用
   func start(hasFullAccess: Bool) async {
@@ -245,6 +251,11 @@ public extension RimeContext {
     // 永远下发不下去。重置（restRime）本来就是这么做的，这里只刷新 SharedSupport，
     // 不动用户数据目录，学习数据和自定义方案不受影响。
     try FileManager.initSandboxSharedSupportDirectory(override: true)
+
+    // 常用语：按组里 custom_phrases.json 重新生成 custom_phrase.txt，
+    // 覆盖刚解压的内置文件，随后随部署同步到组里；键盘下次出现即生效。
+    // 只写主 App 沙盒（SharedSupport 与 userData），不动键盘沙盒的 Rime/，词频不丢。
+    try FileManager.regenerateCustomPhraseFile()
 
     // 判断是否需要覆盖键盘词库文件，如果为否，则先copy键盘词库文件至应用目录
     if let overrideDictFiles = configuration.rime?.overrideDictFiles, overrideDictFiles == false {
@@ -382,6 +393,10 @@ public extension RimeContext {
       Logger.statistics.error("rime init file directory error: \(error.localizedDescription)")
       throw error
     }
+
+    // 重置后常用语也要恢复：JSON 在组里没动，按它重新生成 custom_phrase.txt，
+    // 否则重置完键盘里的常用语就没了（要用户再去保存一次才能回来）。
+    try FileManager.regenerateCustomPhraseFile()
 
     Rime.shared.shutdown()
     Rime.shared.start(Rime.createTraits(

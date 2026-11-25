@@ -14,6 +14,8 @@ protocol SubViewControllerFactory {
   func makeInputSchemaViewController() -> InputSchemaViewController
   func makeFinderViewController() -> FinderViewController
   func makeKeyboardSettingsViewController() -> KeyboardSettingsViewController
+  func makeCustomPhraseViewController() -> CustomPhraseViewController
+  func makeSimplePreferencesViewController() -> SimplePreferencesViewController
   func makeKeyboardColorViewController() -> KeyboardColorViewController
   func makeKeyboardFeedbackViewController() -> KeyboardFeedbackViewController
   func makeBackupViewController() -> BackupViewController
@@ -34,6 +36,12 @@ open class MainViewController: UISplitViewController {
 
   private lazy var keyboardSettingsViewController: KeyboardSettingsViewController
     = subViewControllerFactory.makeKeyboardSettingsViewController()
+
+  private lazy var customPhraseViewController: CustomPhraseViewController
+    = subViewControllerFactory.makeCustomPhraseViewController()
+
+  private lazy var simplePreferencesViewController: SimplePreferencesViewController
+    = subViewControllerFactory.makeSimplePreferencesViewController()
 
   private lazy var keyboardColorViewController: KeyboardColorViewController
     = subViewControllerFactory.makeKeyboardColorViewController()
@@ -137,6 +145,10 @@ extension MainViewController {
       presentFinderViewController()
     case .keyboardSettings:
       presentKeyboardSettingsViewController()
+    case .customPhrase:
+      presentCustomPhraseViewController()
+    case .simplePreferences:
+      presentSimplePreferencesViewController()
     case .colorSchema:
       presentKeyboardColorViewController()
     case .feedback:
@@ -169,6 +181,14 @@ extension MainViewController {
 
   func presentKeyboardSettingsViewController() {
     presentViewController(keyboardSettingsViewController)
+  }
+
+  func presentCustomPhraseViewController() {
+    presentViewController(customPhraseViewController)
+  }
+
+  func presentSimplePreferencesViewController() {
+    presentViewController(simplePreferencesViewController)
   }
 
   func presentKeyboardColorViewController() {

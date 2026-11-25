@@ -117,21 +117,23 @@ public class RimeViewModel {
         ),
       ]
     ),
-    .init(items: [
-      .init(
-        text: "RIME重置",
-        textTintColor: .systemRed,
-        type: .button,
-        buttonAction: { [unowned self] in
-          rimeRestSubject.send { [unowned self] in
-            Task {
-              await rimeRest()
-              reloadTableSubject.send(true)
+    .init(
+      footer: "重置会恢复到初始安装状态；键盘已记住的词频（键盘沙盒里的用户词典）不受影响，不会被清除。",
+      items: [
+        .init(
+          text: "RIME重置",
+          textTintColor: .systemRed,
+          type: .button,
+          buttonAction: { [unowned self] in
+            rimeRestSubject.send { [unowned self] in
+              Task {
+                await rimeRest()
+                reloadTableSubject.send(true)
+              }
             }
           }
-        }
-      ),
-    ]),
+        ),
+      ]),
   ]
 
   private var reloadTableSubject = PassthroughSubject<Bool, Never>()

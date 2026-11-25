@@ -51,6 +51,16 @@ open class HamsterAppDependencyContainer {
     return vm
   }()
 
+  public lazy var customPhraseViewModel: CustomPhraseViewModel = {
+    let vm = CustomPhraseViewModel(rimeContext: rimeContext)
+    return vm
+  }()
+
+  public lazy var simplePreferencesViewModel: SimplePreferencesViewModel = {
+    let vm = SimplePreferencesViewModel()
+    return vm
+  }()
+
   /// 应用配置
   public var configuration: HamsterConfiguration {
     didSet {
@@ -293,6 +303,14 @@ extension HamsterAppDependencyContainer: SubViewControllerFactory {
       keyboardSettingsSubViewControllerFactory: self
     )
     return keyboardSettingsViewController
+  }
+
+  func makeCustomPhraseViewController() -> CustomPhraseViewController {
+    CustomPhraseViewController(customPhraseViewModel: customPhraseViewModel)
+  }
+
+  func makeSimplePreferencesViewController() -> SimplePreferencesViewController {
+    SimplePreferencesViewController(viewModel: simplePreferencesViewModel)
   }
 
   func makeKeyboardColorViewController() -> KeyboardColorViewController {

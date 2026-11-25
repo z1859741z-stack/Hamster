@@ -29,12 +29,21 @@ public struct RimeConfiguration: Codable, Hashable {
   /// 使用场景：在文件管理功能中，拷贝键盘词库文件至应用
   public var regexOnCopyAppGroupDictFile: [String]?
 
-  public init(maximumNumberOfCandidateWords: Int? = nil, keyValueOfSwitchSimplifiedAndTraditional: String? = nil, overrideDictFiles: Bool? = nil, regexOnOverrideDictFiles: [String]? = nil, regexOnCopyAppGroupDictFile: [String]? = nil) {
+  /// 中文标点用全角（中文数字/符号层）。默认 true（现行行为）；
+  /// 关=始终半角。英文模式下本来就是半角，不受此项影响。
+  public var fullShapePunctuation: Bool?
+
+  /// Emoji 候选开关。默认 true（与 rime_ice 方案 switches 里 emoji 的 reset: 1 一致，即默认开）。
+  public var emojiCandidateEnabled: Bool?
+
+  public init(maximumNumberOfCandidateWords: Int? = nil, keyValueOfSwitchSimplifiedAndTraditional: String? = nil, overrideDictFiles: Bool? = nil, regexOnOverrideDictFiles: [String]? = nil, regexOnCopyAppGroupDictFile: [String]? = nil, fullShapePunctuation: Bool? = nil, emojiCandidateEnabled: Bool? = nil) {
     self.maximumNumberOfCandidateWords = maximumNumberOfCandidateWords
     self.keyValueOfSwitchSimplifiedAndTraditional = keyValueOfSwitchSimplifiedAndTraditional
     self.overrideDictFiles = overrideDictFiles
     self.regexOnOverrideDictFiles = regexOnOverrideDictFiles
     self.regexOnCopyAppGroupDictFile = regexOnCopyAppGroupDictFile
+    self.fullShapePunctuation = fullShapePunctuation
+    self.emojiCandidateEnabled = emojiCandidateEnabled
   }
 
   public init(from decoder: Decoder) throws {
@@ -44,6 +53,8 @@ public struct RimeConfiguration: Codable, Hashable {
     self.overrideDictFiles = try container.decodeIfPresent(Bool.self, forKey: .overrideDictFiles)
     self.regexOnOverrideDictFiles = try container.decodeIfPresent([String].self, forKey: .regexOnOverrideDictFiles)
     self.regexOnCopyAppGroupDictFile = try container.decodeIfPresent([String].self, forKey: .regexOnCopyAppGroupDictFile)
+    self.fullShapePunctuation = try container.decodeIfPresent(Bool.self, forKey: .fullShapePunctuation)
+    self.emojiCandidateEnabled = try container.decodeIfPresent(Bool.self, forKey: .emojiCandidateEnabled)
   }
 
   enum CodingKeys: CodingKey {
@@ -52,6 +63,8 @@ public struct RimeConfiguration: Codable, Hashable {
     case overrideDictFiles
     case regexOnOverrideDictFiles
     case regexOnCopyAppGroupDictFile
+    case fullShapePunctuation
+    case emojiCandidateEnabled
   }
 
   public func encode(to encoder: Encoder) throws {
@@ -61,5 +74,7 @@ public struct RimeConfiguration: Codable, Hashable {
     try container.encodeIfPresent(self.overrideDictFiles, forKey: .overrideDictFiles)
     try container.encodeIfPresent(self.regexOnOverrideDictFiles, forKey: .regexOnOverrideDictFiles)
     try container.encodeIfPresent(self.regexOnCopyAppGroupDictFile, forKey: .regexOnCopyAppGroupDictFile)
+    try container.encodeIfPresent(self.fullShapePunctuation, forKey: .fullShapePunctuation)
+    try container.encodeIfPresent(self.emojiCandidateEnabled, forKey: .emojiCandidateEnabled)
   }
 }

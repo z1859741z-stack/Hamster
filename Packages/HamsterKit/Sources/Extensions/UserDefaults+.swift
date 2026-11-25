@@ -297,6 +297,18 @@ public extension UserDefaults {
       set(newValue, forKey: Self.hotKeys)
     }
   }
+
+  /// 键盘最近一次弹出（启动）的时间戳，供主 App 判断键盘是否启用过。
+  /// 键盘每次出现时更新；主 App 读它，超过 7 天未更新视为未启用。
+  /// 注意：这只能证明键盘曾经启用并运行过，不能证明当前仍处于启用状态。
+  var keyboardLastActiveAt: Date? {
+    get {
+      object(forKey: Self.keyboardLastActiveAtKey) as? Date
+    }
+    set {
+      set(newValue, forKey: Self.keyboardLastActiveAtKey)
+    }
+  }
 }
 
 extension UserDefaults {
@@ -351,6 +363,7 @@ extension UserDefaults {
   private static let currentSchemaForKey = "com.ihsiao.apps.Hamster.UserDefault.keys.currentSchema"
   private static let latestSchemaForKey = "com.ihsiao.apps.Hamster.UserDefault.keys.latestSchemaForKey"
   private static let hotKeys = "com.ihsiao.apps.Hamster.UserDefault.keys.hotKeys"
+  private static let keyboardLastActiveAtKey = "com.ihsiao.apps.Hamster.UserDefaults.keyboardLastActiveAt"
 
   // MARK: - 补丁
 

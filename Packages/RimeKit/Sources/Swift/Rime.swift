@@ -181,6 +181,16 @@ public class Rime {
     rimeAPI.setOption(session, andOption: Self.asciiModeKey, andValue: value)
   }
 
+  /// Emoji 候选开关（rime_ice 方案自带的 emoji 选项，运行时生效，不用重新部署）。
+  /// 注意：须在选方案、session 建好之后调；session 未建好时是安全空操作。
+  public func setEmojiEnabled(_ value: Bool) {
+    rimeAPI.setOption(session, andOption: Self.emojiOptionKey, andValue: value)
+  }
+
+  public func isEmojiEnabled() -> Bool {
+    rimeAPI.getOption(session, andOption: Self.emojiOptionKey)
+  }
+
   public func getCandidate(index: Int, count: Int) -> [IRimeCandidate] {
     rimeAPI.getCandidateWith(Int32(index), andCount: Int32(count), andSession: session) ?? []
   }
@@ -288,4 +298,5 @@ public class Rime {
 extension Rime {
   private static let asciiModeKey = "ascii_mode"
   private static let simplifiedChineseKey = "simplification"
+  private static let emojiOptionKey = "emoji"
 }

@@ -256,10 +256,21 @@ open class KeyboardInputViewController: UIInputViewController, KeyboardControlle
 
    该属性用作键盘反馈（如音频和触觉反馈）的全局配置。
    */
-  public lazy var keyboardFeedbackSettings: KeyboardFeedbackSettings = {
-    let enableAudio = keyboardContext.hamsterConfiguration?.keyboard?.enableKeySounds ?? false
-    let enableHaptic = keyboardContext.hamsterConfiguration?.keyboard?.enableHapticFeedback ?? false
-    let hapticFeedbackIntensity = keyboardContext.hamsterConfiguration?.keyboard?.hapticFeedbackIntensity ?? 2
+  public lazy var keyboardFeedbackSettings: KeyboardFeedbackSettings = Self.makeFeedbackSettings(from: keyboardContext.hamsterConfiguration)
+
+  /**
+   中文标点是否用全角（偏好，每次键盘出现时从组配置重读；默认 true）。
+   供 insertSymbolChar 读：关时中文数字/符号层的标点直接上屏（半角）。
+   */
+  private var fullShapePunctuation = true
+
+  /**
+   按给定配置生成触感与按键音设置。
+   */
+  private static func makeFeedbackSettings(from configuration: HamsterConfiguration?) -> KeyboardFeedbackSettings {
+    let enableAudio = configuration?.keyboard?.enableKeySounds ?? false
+    let enableHaptic = configuration?.keyboard?.enableHapticFeedback ?? false
+    let hapticFeedbackIntensity = configuration?.keyboard?.hapticFeedbackIntensity ?? 3
     let hapticFeedback = HapticIntensity(rawValue: hapticFeedbackIntensity)?.hapticFeedback() ?? .mediumImpact
     return KeyboardFeedbackSettings(
       audioConfiguration: enableAudio ? .enabled : .noFeedback,
@@ -271,7 +282,34 @@ open class KeyboardInputViewController: UIInputViewController, KeyboardControlle
         repeat: .selectionChanged
       ) : .noFeedback
     )
-  }()
+  }
+
+  /**
+   按给定配置更新触感与按键音。keyboardFeedbackSettings 是 class，
+   feedbackHandler 持有同一对象，直接改它的属性即生效，不用重建 handler。
+   */
+  private func applyFeedbackSettings(_ configuration: HamsterConfiguration?) {
+    let fresh = Self.makeFeedbackSettings(from: configuration)
+    keyboardFeedbackSettings.audioConfiguration = fresh.audioConfiguration
+    keyboardFeedbackSettings.hapticConfiguration = fresh.hapticConfiguration
+  }
+
+  /**
+   每次键盘出现时应用偏好：候选个数、触感、标点全/半角、emoji。
+   在选方案之后调（emoji 是 RIME 运行时选项，须有 session 才生效）。
+   */
+  private func applyKeyboardPreferences(_ configuration: HamsterConfiguration?) async {
+    if let maximumNumberOfCandidateWords = configuration?.rime?.maximumNumberOfCandidateWords {
+      await rimeContext.setMaximumNumberOfCandidateWords(maximumNumberOfCandidateWords)
+    }
+    let fullShape = configuration?.rime?.fullShapePunctuation ?? true
+    let emojiEnabled = configuration?.rime?.emojiCandidateEnabled ?? true
+    rimeContext.setEmojiCandidateEnabled(emojiEnabled)
+    await MainActor.run {
+      self.fullShapePunctuation = fullShape
+      self.applyFeedbackSettings(configuration)
+    }
+  }
 
   /**
    The default, observable keyboard text context.
@@ -538,8 +576,10 @@ open class KeyboardInputViewController: UIInputViewController, KeyboardControlle
   /// 非 ASCII 字符、英文层一律直接上屏。RIME 没接住时回落直接上屏。
   /// 注：中/英切换只改 RIME asciiMode，asciiMode 下标点转换器自动用半角，
   /// 所以英文模式走同一条路结果仍是半角。
+  /// 偏好“中文标点用全角”关时跳过 RIME 转换，直接上屏（始终半角）。
   private func insertSymbolChar(_ char: String) {
-    if keyboardContext.keyboardType == .chineseNumeric || keyboardContext.keyboardType == .chineseSymbolic,
+    if fullShapePunctuation,
+       keyboardContext.keyboardType == .chineseNumeric || keyboardContext.keyboardType == .chineseSymbolic,
        char.count == 1,
        let scalar = char.unicodeScalars.first,
        scalar.value < 128,
@@ -847,6 +887,9 @@ private extension KeyboardInputViewController {
   func setupRIME() {
     // 异步 RIME 引擎启动
     Task.detached { [unowned self] in
+      // 键盘心跳：每次弹出写一次，供主 App 判断键盘是否启用过。
+      UserDefaults.hamster.keyboardLastActiveAt = Date()
+
       // 每次键盘出现都先检查组里部署产物：主 App 重新部署后 build、
       // installation.yaml 或 default.custom.yaml 的时间戳会变，
       // 签名对不上就重新同步；同步过就重启引擎，让新 build 生效。
@@ -859,6 +902,9 @@ private extension KeyboardInputViewController {
         Logger.statistics.error("sync app group rime build error: \(error.localizedDescription)")
       }
 
+      // 每次出现都从组 plist 重读偏好，不依赖 VC 是否重建。
+      let configuration = await self.reloadKeyboardConfiguration()
+
       if await rimeContext.isRunning {
         if buildChanged {
           // 重启引擎，让新 build 生效；start 里会重新选方案。
@@ -867,6 +913,7 @@ private extension KeyboardInputViewController {
           // 引擎在跑、build 没变：只重新应用当前方案，
           // 主 App 里切过方案后不用重启键盘也生效。
           let _ = rimeContext.setupRimeInputSchema()
+          await self.applyKeyboardPreferences(configuration)
           return
         }
       }
@@ -883,11 +930,11 @@ private extension KeyboardInputViewController {
         return
       }
 
-      if let maximumNumberOfCandidateWords = await keyboardContext.hamsterConfiguration?.rime?.maximumNumberOfCandidateWords {
+      if let maximumNumberOfCandidateWords = configuration?.rime?.maximumNumberOfCandidateWords {
         await rimeContext.setMaximumNumberOfCandidateWords(maximumNumberOfCandidateWords)
       }
 
-      if let swipePaging = await keyboardContext.hamsterConfiguration?.toolbar?.swipePaging {
+      if let swipePaging = configuration?.toolbar?.swipePaging {
         await rimeContext.setUseContextPaging(swipePaging == false)
       }
 
@@ -895,9 +942,18 @@ private extension KeyboardInputViewController {
       // 即使其他复用此控制器的扩展拥有完全访问，也始终使用扩展私有目录。
       await rimeContext.start(hasFullAccess: false)
 
-      let simplifiedModeKey = await keyboardContext.hamsterConfiguration?.rime?.keyValueOfSwitchSimplifiedAndTraditional ?? ""
+      let simplifiedModeKey = configuration?.rime?.keyValueOfSwitchSimplifiedAndTraditional ?? ""
       await rimeContext.syncTraditionalSimplifiedChineseMode(simplifiedModeKey: simplifiedModeKey)
+
+      await self.applyKeyboardPreferences(configuration)
     }
+  }
+
+  /// 从组里 build/hamster.plist 重读配置并更新 keyboardContext，
+  /// 返回重读后的配置（读失败时返回旧配置）。
+  private func reloadKeyboardConfiguration() -> HamsterConfiguration? {
+    keyboardContext.reloadHamsterConfiguration()
+    return keyboardContext.hamsterConfiguration
   }
 
   func shutdownRIME() {

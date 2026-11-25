@@ -31,6 +31,10 @@ public class CandidateBarView: NibLessView {
   private var rimeContext: RimeContext
   private var userInterfaceStyle: UIUserInterfaceStyle
 
+  /// 拼音行左边距。系统键盘的拼音行左边距未核实，12pt 是初值，
+  /// 待真机对比后按实测值再调（只改这一处）。
+  static let phoneticLeadingMargin: CGFloat = 12
+
   /// 拼音Label
   lazy var phoneticLabel: UILabel = {
     let label = UILabel(frame: .zero)
@@ -161,7 +165,7 @@ public class CandidateBarView: NibLessView {
           candidatesView.topAnchor.constraint(equalTo: topAnchor),
           candidatesView.bottomAnchor.constraint(equalTo: bottomAnchor),
           candidatesView.leadingAnchor.constraint(equalTo: leadingAnchor, constant: buttonInsets.left),
-          candidatesView.trailingAnchor.constraint(equalTo: controlStateView.leadingAnchor),
+          candidatesView.trailingAnchor.constraint(equalTo: controlStateView.leadingAnchor, constant: -8),
 
           controlStateView.heightAnchor.constraint(equalTo: controlStateView.widthAnchor, multiplier: 1.0),
           controlStateView.topAnchor.constraint(equalTo: topAnchor),
@@ -179,7 +183,7 @@ public class CandidateBarView: NibLessView {
     } else {
       if keyboardContext.swipePaging {
         NSLayoutConstraint.activate([
-          phoneticLabel.leadingAnchor.constraint(equalTo: leadingAnchor, constant: buttonInsets.left),
+          phoneticLabel.leadingAnchor.constraint(equalTo: leadingAnchor, constant: Self.phoneticLeadingMargin),
           phoneticLabel.trailingAnchor.constraint(equalTo: trailingAnchor),
           phoneticLabel.topAnchor.constraint(equalTo: topAnchor),
           phoneticLabel.heightAnchor.constraint(equalToConstant: codingAreaHeight),
@@ -187,7 +191,7 @@ public class CandidateBarView: NibLessView {
           candidatesView.topAnchor.constraint(equalTo: phoneticLabel.bottomAnchor),
           candidatesView.bottomAnchor.constraint(equalTo: bottomAnchor),
           candidatesView.leadingAnchor.constraint(equalTo: leadingAnchor, constant: buttonInsets.left),
-          candidatesView.trailingAnchor.constraint(equalTo: controlStateView.leadingAnchor),
+          candidatesView.trailingAnchor.constraint(equalTo: controlStateView.leadingAnchor, constant: -8),
 
           controlStateView.heightAnchor.constraint(equalTo: controlStateView.widthAnchor, multiplier: 1.0),
           controlStateView.topAnchor.constraint(equalTo: phoneticLabel.bottomAnchor),
@@ -196,7 +200,7 @@ public class CandidateBarView: NibLessView {
         ])
       } else {
         NSLayoutConstraint.activate([
-          phoneticLabel.leadingAnchor.constraint(equalTo: leadingAnchor, constant: buttonInsets.left),
+          phoneticLabel.leadingAnchor.constraint(equalTo: leadingAnchor, constant: Self.phoneticLeadingMargin),
           phoneticLabel.trailingAnchor.constraint(equalTo: trailingAnchor),
           phoneticLabel.topAnchor.constraint(equalTo: topAnchor),
           phoneticLabel.heightAnchor.constraint(equalToConstant: codingAreaHeight),

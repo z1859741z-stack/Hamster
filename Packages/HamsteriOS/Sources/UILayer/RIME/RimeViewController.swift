@@ -40,7 +40,7 @@ public class RimeViewController: NibLessViewController {
     self.rimeViewModel.rimeRestPublished
       .receive(on: DispatchQueue.main)
       .sink { [unowned self] rest in
-        alertConfirm(alertTitle: "RIME 重置", message: "重置会恢复到初始安装状态，是否确认重置？", confirmTitle: "重置", confirmCallback: {
+        alertConfirm(alertTitle: "RIME 重置", message: "重置会恢复到初始安装状态，键盘已记住的词频不受影响，是否确认重置？", confirmTitle: "重置", confirmCallback: {
           rest()
         })
       }
