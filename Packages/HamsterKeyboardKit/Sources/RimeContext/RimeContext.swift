@@ -84,9 +84,9 @@ public class RimeContext {
   /// 注意：只保存最近一次选择的拼音和拼音开始位置及长度
   public lazy var selectCandidatePinyin: (String, Int, Int)? = nil
 
-  /// 字母模式
-  @MainActor
-  public lazy var asciiMode: Bool = false
+  /// 字母模式（中/英切换）。@Published 供空格键等视图实时跟随；其余 @Published 同样是 @MainActor。
+  @MainActor @Published
+  public var asciiMode: Bool = false
 
   /// 候选字
   @MainActor @Published

@@ -12,10 +12,10 @@ toolbar:
   # 显示键盘 dissmiss 按钮
   displayKeyboardDismissButton: false
   # 工具栏总高度
-  # 系统建议栏同高 40pt：拼音行 14pt（12pt 字）+ 候选 cell 24pt（18pt 字，上下各留 1pt）
+  # 系统建议栏同高 40pt：拼音行 15pt（12pt 字，行高约 14.3）+ 候选区 25pt（上留白 1pt + 候选 cell 24pt，18pt 字行高约 21.6）
   heightOfToolbar: 40
   # 拼写区高度(剩余高度由候选文字占用)
-  heightOfCodingArea: 14
+  heightOfCodingArea: 15
   # 拼写区字体大小
   codingAreaFontSize: 12
   # 候选文字索引字体大小

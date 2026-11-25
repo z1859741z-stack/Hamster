@@ -151,6 +151,26 @@ class SpaceContentView: NibLessView {
         loadingAnimate()
       }
       .store(in: &subscriptions)
+
+    // 空格字跟随中/英切换：中文键盘 + 英文模式时显示 "space"
+    rimeContext.$asciiMode
+      .receive(on: DispatchQueue.main)
+      .sink { [weak self] _ in
+        self?.updateSpaceText()
+      }
+      .store(in: &subscriptions)
+  }
+
+  /// 按当前中/英状态刷新空格键文字：中文键盘 + 英文模式（asciiMode）显示 "space"，其余走 labelTextForSpaceButton。
+  /// 自定义键盘、数字键盘、显示方案名模式下不改（沿用建好时的文字）。
+  private func updateSpaceText() {
+    guard !keyboardContext.keyboardType.isCustom,
+          !keyboardContext.keyboardType.isNumber,
+          !keyboardContext.showCurrentInputSchemaNameForSpaceButton else { return }
+    let text = (keyboardContext.keyboardType.isChinese && rimeContext.asciiMode)
+      ? "space"
+      : keyboardContext.labelTextForSpaceButton
+    textView.setTextValue(text)
   }
 
   override func didMoveToWindow() {

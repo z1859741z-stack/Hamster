@@ -207,7 +207,8 @@ extension CandidateWordsCollectionView: UICollectionViewDelegate {
 
 extension CandidateWordsCollectionView: UICollectionViewDelegateFlowLayout {
   public func collectionView(_ collectionView: UICollectionView, layout collectionViewLayout: UICollectionViewLayout, insetForSectionAt section: Int) -> UIEdgeInsets {
-    return UIEdgeInsets(top: 6, left: 0, bottom: 0, right: 0)
+    // 上留白 1pt：候选区 25pt = 留白 1pt + cell 24pt，正好放下；旧值 6pt 是 50pt 工具栏时代的，40pt 下会把 cell 顶出底边 4pt
+    return UIEdgeInsets(top: 1, left: 0, bottom: 0, right: 0)
   }
 
   // 询问委托一个部分连续的行或列之间的间距。
@@ -234,8 +235,8 @@ extension CandidateWordsCollectionView: UICollectionViewDelegateFlowLayout {
   public func collectionView(_ collectionView: UICollectionView, layout collectionViewLayout: UICollectionViewLayout, sizeForItemAt indexPath: IndexPath) -> CGSize {
     let isVerticalLayout: Bool = !self.candidatesViewState.isCollapse()
     let heightOfCodingArea: CGFloat = keyboardContext.enableEmbeddedInputMode ? 0 : keyboardContext.heightOfCodingArea
-    // 候选 cell 上下各留 1pt：工具栏 40pt − 拼音行 14pt − 2pt = 24pt，18pt 候选字行高约 21.6pt
-    let heightOfToolbar: CGFloat = keyboardContext.heightOfToolbar - heightOfCodingArea - 2
+    // 候选 cell 24pt：工具栏 40pt − 拼音行 15pt − 上留白 1pt；18pt 候选字行高约 21.6pt，上下各留约 1.2pt
+    let heightOfToolbar: CGFloat = keyboardContext.heightOfToolbar - heightOfCodingArea - 1
 
     guard indexPath.item < rimeContext.suggestions.count else { return .zero }
     let candidate = rimeContext.suggestions[indexPath.item]

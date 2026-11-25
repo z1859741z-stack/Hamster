@@ -522,8 +522,7 @@ public class KeyboardContext: ObservableObject {
     return defaultSpaceButtonText
   }
 
-  /// 空格键默认文字：中文键盘“空格”，其他键盘 "space"。
-  /// 注意：点“中/英”只改 RIME 的 asciiMode，不改 keyboardType，所以中文键盘上切英文后仍显示“空格”；如需跟随须另做，见 commit 说明。
+  /// 空格键默认文字：中文键盘“空格”，其他键盘 "space"。点“中/英”切英文后由 SpaceContentView 订阅 asciiMode 实时改成 "space"。
   private var defaultSpaceButtonText: String {
     keyboardType.isChinese ? "空格" : "space"
   }

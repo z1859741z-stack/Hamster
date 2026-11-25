@@ -111,8 +111,9 @@ public class HamsterUIColor: KeyboardColorReader {
 
    深色键盘按钮的标准背景色。
    */
-  // lazy var standardDarkButtonBackground: UIColor = HamsterUIColor.color(for: .standardDarkButtonBackground)
-  public private(set) lazy var standardDarkButtonBackground: UIColor = .init(red: 0, green: 0, blue: 0, alpha: 0.15)
+  // 恢复资产里的不透明系统色（浅色 #ABB1BA、深色 #474747）。旧值是写死的黑 15% 透明色，
+  // 渲染结果取决于键盘底色：b16 把键盘底改成不透明的 0.835 灰后，叠出来比系统和 b14 都深一截。
+  public private(set) lazy var standardDarkButtonBackground: UIColor = color(for: .standardDarkButtonBackground)
 
   /**
    The standard background color of a dark keyboard button
