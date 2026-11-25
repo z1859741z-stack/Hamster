@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		C03EC39A2B06491E00DB741E /* HamsterKeyboard.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = C03E803C296D53650083E53A /* HamsterKeyboard.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		C00C26B72B0698E300E92F89 /* HamsterKeyboardKit in Frameworks */ = {isa = PBXBuildFile; productRef = C00C26B62B0698E300E92F89 /* HamsterKeyboardKit */; };
 		C00C26E82B069D6B00E92F89 /* librime-static.xcframework in Frameworks */ = {isa = PBXBuildFile; fileRef = C00C26C62B069D6A00E92F89 /* librime-static.xcframework */; };
 		C00C26E92B069D6B00E92F89 /* librime-static.xcframework in Frameworks */ = {isa = PBXBuildFile; fileRef = C00C26C62B069D6A00E92F89 /* librime-static.xcframework */; };
@@ -27,9 +28,29 @@
 		C0D856CC2B026FF6003DB275 /* rime-ice.zip in Copy Rime SharedSupport */ = {isa = PBXBuildFile; fileRef = C0D856CA2B026FDA003DB275 /* rime-ice.zip */; };
 		C0DA3F422AFB5AE9003E74DA /* RimeDeployBackgroundIntent.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0DA3F412AFB5AE9003E74DA /* RimeDeployBackgroundIntent.swift */; };
 /* End PBXBuildFile section */
+/* Begin PBXContainerItemProxy section */
+		C03EC39B2B06491E00DB741E /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = C03E801D296D4F4C0083E53A /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = C03E803B296D53650083E53A;
+			remoteInfo = HamsterKeyboard;
+		};
+/* End PBXContainerItemProxy section */
 
 
 /* Begin PBXCopyFilesBuildPhase section */
+		C03EC39D2B06491E00DB741E /* Embed Foundation Extensions */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 13;
+			files = (
+				C03EC39A2B06491E00DB741E /* HamsterKeyboard.appex in Embed Foundation Extensions */,
+			);
+			name = "Embed Foundation Extensions";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		C071BF712970126C00E21FBC /* Copy Rime SharedSupport */ = {
 			isa = PBXCopyFilesBuildPhase;
 			buildActionMask = 2147483647;
@@ -244,10 +265,12 @@
 				C03E8022296D4F4C0083E53A /* Frameworks */,
 				C0AC2E61299F743E00BC494C /* Resources */,
 				C071BF712970126C00E21FBC /* Copy Rime SharedSupport */,
+				C03EC39D2B06491E00DB741E /* Embed Foundation Extensions */,
 			);
 			buildRules = (
 			);
 			dependencies = (
+				C03EC39C2B06491E00DB741E /* PBXTargetDependency */,
 			);
 			name = Hamster;
 			packageProductDependencies = (
@@ -366,6 +389,13 @@
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXSourcesBuildPhase section */
+/* Begin PBXTargetDependency section */
+		C03EC39C2B06491E00DB741E /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = C03E803B296D53650083E53A /* HamsterKeyboard */;
+			targetProxy = C03EC39B2B06491E00DB741E /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
 
 
 /* Begin PBXVariantGroup section */
