@@ -120,13 +120,25 @@ system_shot="$output/02-system-keyboard-secure.png"
 [ ! -e "$main_shot" ] && [ ! -e "$system_shot" ] || die "Refusing to overwrite existing screenshots in $output; choose a fresh output directory"
 
 # A booted device returns an error from boot; bootstatus also verifies availability.
-if ! xcrun simctl boot "$udid" > "$work/boot.log" 2>&1; then
-  log 'Boot command did not start a device (it may already be booted); checking boot status.'
-fi
-if ! xcrun simctl bootstatus "$udid" -b; then
-  cat "$work/boot.log" >&2
-  die 'Simulator did not reach the booted state'
-fi
+# First boots on CI machines are flaky (SpringBoard can stall); retry the boot once.
+boot_attempt=0
+while :; do
+  boot_attempt=$((boot_attempt + 1))
+  if ! xcrun simctl boot "$udid" > "$work/boot.log" 2>&1; then
+    log 'Boot command did not start a device (it may already be booted); checking boot status.'
+  fi
+  if xcrun simctl bootstatus "$udid" -b; then
+    break
+  fi
+  log "bootstatus failed on attempt $boot_attempt"
+  if [ "$boot_attempt" -ge 2 ]; then
+    cat "$work/boot.log" >&2
+    die 'Simulator did not reach the booted state'
+  fi
+  log 'Retrying simulator boot once...'
+  xcrun simctl shutdown "$udid" >>"$work/boot.log" 2>&1 || true
+  sleep 5
+done
 arch="$(xcrun simctl spawn "$udid" uname -m | tr -d '\r\n')"
 case "$arch" in arm64|x86_64) ;; *) die "Unsupported simulator architecture: $arch";; esac
 app_archs="$(xcrun lipo -archs "$app/$app_executable")"
