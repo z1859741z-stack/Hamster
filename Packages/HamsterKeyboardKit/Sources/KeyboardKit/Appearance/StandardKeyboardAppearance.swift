@@ -383,7 +383,26 @@ open class StandardKeyboardAppearance: KeyboardAppearance {
   ///
   /// 根据给定 `isPressed` 状态， 用于特定操作的背景颜色。
   open func buttonBackgroundColor(for action: KeyboardAction, isPressed: Bool) -> UIColor {
-    return action.buttonBackgroundColor(for: keyboardContext, isPressed: isPressed)
+    let color = action.buttonBackgroundColor(for: keyboardContext, isPressed: isPressed)
+    // 液态玻璃开 + 浅色：背景透明后系统会给键盘内容整体压暗一层，
+    // 功能键（shift、删除、123、换行等）的 #ABB1BA 会被压到约 148，比系统键盘的约 171 深一截。
+    // 这里只把这一种颜色换成更亮的 #CBCFD9，压暗后约等于系统键盘的功能键颜色。
+    // 深色、玻璃关、自定义配色方案都不走这里，和 b24 一样。
+    if isLiquidGlassEnabled, !keyboardContext.hasDarkColorScheme,
+       color === HamsterUIColor.shared.standardDarkButtonBackground
+    {
+      return Self.glassLightFunctionKeyBackground
+    }
+    return color
+  }
+
+  /// 液态玻璃开 + 浅色时功能键底色（真机取色反推，见上）。
+  private static let glassLightFunctionKeyBackground = UIColor(red: 203 / 255, green: 207 / 255, blue: 217 / 255, alpha: 1)
+
+  /// 液态玻璃是否开启：开关开且系统 iOS 26+（配置每次弹出前重读）。
+  private var isLiquidGlassEnabled: Bool {
+    guard #available(iOS 26.0, *) else { return false }
+    return keyboardContext.hamsterConfiguration?.keyboard?.liquidGlassStyle ?? false
   }
 
   open func buttonBackgroundColor(for action: KeyboardAction, isPressed: Bool, hamsterColor: HamsterKeyboardColor) -> UIColor {
