@@ -54,18 +54,6 @@ open class StandardKeyboardAppearance: KeyboardAppearance {
   /// 要使用的键盘上下文。
   public let keyboardContext: KeyboardContext
 
-  /// 液态玻璃是否开启：开关开且系统 iOS 26+（配置每次弹出前重读）。
-  private var isLiquidGlassEnabled: Bool {
-    guard #available(iOS 26.0, *) else { return false }
-    return keyboardContext.hamsterConfiguration?.keyboard?.liquidGlassStyle ?? false
-  }
-
-  /// 玻璃开时按键/候选高亮底色改半透明，让背后的玻璃透出来；关时原样。
-  /// 文字颜色走系统语义色（standardButtonForeground），不改，保证浅色壁纸下也看得清。
-  private func glassAdjustedBackground(_ color: UIColor) -> UIColor {
-    isLiquidGlassEnabled ? color.withAlphaComponent(0.55) : color
-  }
-
   // MARK: - Keyboard 键盘样式
 
   /// The background style to apply to the entire keyboard.
@@ -235,7 +223,7 @@ open class StandardKeyboardAppearance: KeyboardAppearance {
         phoneticTextFont: phoneticTextFont,
         preferredCandidateTextColor: hamsterColor.hilitedCandidateTextColor,
         preferredCandidateCommentTextColor: hamsterColor.hilitedCommentTextColor,
-        preferredCandidateBackgroundColor: glassAdjustedBackground(hamsterColor.hilitedCandidateBackColor),
+        preferredCandidateBackgroundColor: hamsterColor.hilitedCandidateBackColor,
         preferredCandidateLabelColor: hamsterColor.hilitedCandidateLabelColor,
         candidateTextColor: hamsterColor.candidateTextColor,
         candidateCommentTextColor: hamsterColor.commentTextColor,
@@ -255,7 +243,7 @@ open class StandardKeyboardAppearance: KeyboardAppearance {
       phoneticTextFont: phoneticTextFont,
       preferredCandidateTextColor: foregroundColor,
       preferredCandidateCommentTextColor: foregroundColor,
-      preferredCandidateBackgroundColor: glassAdjustedBackground(hamsterUIColor.standardButtonBackground(for: keyboardContext)),
+      preferredCandidateBackgroundColor: hamsterUIColor.standardButtonBackground(for: keyboardContext),
       preferredCandidateLabelColor: foregroundColor,
       candidateTextColor: foregroundColor,
       candidateCommentTextColor: foregroundColor,
@@ -395,11 +383,11 @@ open class StandardKeyboardAppearance: KeyboardAppearance {
   ///
   /// 根据给定 `isPressed` 状态， 用于特定操作的背景颜色。
   open func buttonBackgroundColor(for action: KeyboardAction, isPressed: Bool) -> UIColor {
-    return glassAdjustedBackground(action.buttonBackgroundColor(for: keyboardContext, isPressed: isPressed))
+    return action.buttonBackgroundColor(for: keyboardContext, isPressed: isPressed)
   }
 
   open func buttonBackgroundColor(for action: KeyboardAction, isPressed: Bool, hamsterColor: HamsterKeyboardColor) -> UIColor {
-    return glassAdjustedBackground(action.buttonBackgroundColor(for: keyboardContext, isPressed: isPressed, hamsterColor: hamsterColor))
+    return action.buttonBackgroundColor(for: keyboardContext, isPressed: isPressed, hamsterColor: hamsterColor)
   }
 
   /// The border style to use for a certain action.

@@ -88,7 +88,7 @@ public class SimplePreferencesViewModel {
 
   // MARK: - 液态玻璃样式（新增；默认关，仅 iOS 26+ 可用）
 
-  /// 是否 iOS 26 及以上（液态玻璃要 UIGlassEffect，只在 iOS 26+ 有）。
+  /// 是否 iOS 26 及以上（系统底色的液态玻璃效果只在 iOS 26+ 有）。
   public static var supportsLiquidGlass: Bool {
     if #available(iOS 26.0, *) { return true }
     return false
@@ -159,7 +159,7 @@ public class SimplePreferencesViewModel {
       ]),
     .init(
       title: "外观",
-      footer: "液态玻璃样式：开启后按键和候选栏用系统液态玻璃底，尽量贴近系统键盘。需要 iOS 26 及以上，低版本上开关不可用。键盘每次弹出时重读本开关。",
+      footer: "液态玻璃样式（实验性）：开启后键盘背景全透明，让系统底色透上来，尽量贴近系统键盘；按键保持不透明。需要 iOS 26 及以上，低版本上开关不可用。键盘每次弹出时重读本开关。",
       items: [
         .init(
           text: "液态玻璃样式",

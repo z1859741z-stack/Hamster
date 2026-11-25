@@ -221,8 +221,22 @@ class KeyboardRootView: NibLessView {
   }
 
   override func setupAppearance() {
-    backgroundColor = appearance.backgroundStyle.backgroundColor
+    // 液态玻璃实验：开时各层背景全透明，让系统底色透上来；关时恢复 b24 的背景，一模一样。
+    // gate 放在这里：深浅色切换时 setupAppearance 会重跑，开关状态每次都会重新应用。
+    backgroundColor = isLiquidGlassEnabled ? .clear : appearance.backgroundStyle.backgroundColor
+    if isLiquidGlassEnabled {
+      if keyboardContext.enableToolbar {
+        toolbarView.backgroundColor = .clear
+      }
+      primaryKeyboardView.backgroundColor = .clear
+    }
     contentMode = .redraw
+  }
+
+  /// 液态玻璃实验是否开启：开关开且系统 iOS 26+（配置每次弹出前重读）。
+  private var isLiquidGlassEnabled: Bool {
+    guard #available(iOS 26.0, *) else { return false }
+    return keyboardContext.hamsterConfiguration?.keyboard?.liquidGlassStyle ?? false
   }
 
   // MARK: - Layout
@@ -235,31 +249,6 @@ class KeyboardRootView: NibLessView {
     } else {
       addSubview(primaryKeyboardView)
     }
-  }
-
-  /// 候选栏玻璃视图（液态玻璃开且 iOS 26+ 时才有；每次弹出时由 controller 调，先移除旧的再按开关决定加不加）。
-  private var toolbarGlassView: UIVisualEffectView?
-
-  /// 每次弹出时调：先移除旧的候选栏玻璃，再按开关决定加不加。
-  /// （不要放 constructViewHierarchy 里——那只在创建视图时跑一次，开关切换后候选栏跟不上。）
-  /// 候选栏单独一个玻璃视图，插在工具栏最底层；整个键盘的玻璃背景在 controller 那层共用一个，
-  /// 让候选区和按键区各有明确的玻璃面；候选文字颜色走系统语义色，浅色壁纸下也看得清。
-  func applyToolbarGlassIfNeeded() {
-    toolbarGlassView?.removeFromSuperview()
-    toolbarGlassView = nil
-    guard keyboardContext.enableToolbar else { return }
-    guard #available(iOS 26.0, *) else { return }
-    guard keyboardContext.hamsterConfiguration?.keyboard?.liquidGlassStyle == true else { return }
-    let effectView = UIVisualEffectView(effect: UIGlassEffect())
-    effectView.translatesAutoresizingMaskIntoConstraints = false
-    toolbarView.insertSubview(effectView, at: 0)
-    NSLayoutConstraint.activate([
-      effectView.topAnchor.constraint(equalTo: toolbarView.topAnchor),
-      effectView.bottomAnchor.constraint(equalTo: toolbarView.bottomAnchor),
-      effectView.leadingAnchor.constraint(equalTo: toolbarView.leadingAnchor),
-      effectView.trailingAnchor.constraint(equalTo: toolbarView.trailingAnchor),
-    ])
-    toolbarGlassView = effectView
   }
 
   /// 激活约束
