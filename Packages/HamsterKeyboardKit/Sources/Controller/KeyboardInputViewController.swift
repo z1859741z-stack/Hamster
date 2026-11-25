@@ -47,6 +47,8 @@ open class KeyboardInputViewController: UIInputViewController, KeyboardControlle
 
   override open func viewWillAppear(_ animated: Bool) {
     super.viewWillAppear(animated)
+    // 弹出计时起点：显示弹出耗时开关开时，从这里算到引擎就绪。
+    popupStartTime = CFAbsoluteTimeGetCurrent()
     setupRIME()
     viewWillSetupKeyboard()
     viewWillSyncWithContext()
@@ -263,6 +265,12 @@ open class KeyboardInputViewController: UIInputViewController, KeyboardControlle
    供 insertSymbolChar 读：关时中文数字/符号层的标点直接上屏（半角）。
    */
   private var fullShapePunctuation = true
+
+  /// 本次键盘弹出的计时起点（viewWillAppear 里记，供弹出耗时调试显示用）。
+  private var popupStartTime: CFAbsoluteTime = 0
+
+  /// 弹出耗时提示 label（调试开关开时才创建，3 秒后自动消失）。
+  private var latencyToastLabel: UILabel?
 
   /**
    按给定配置生成触感与按键音设置。
@@ -887,8 +895,14 @@ private extension KeyboardInputViewController {
   func setupRIME() {
     // 异步 RIME 引擎启动
     Task.detached { [unowned self] in
-      // 键盘心跳：每次弹出写一次，供主 App 判断键盘是否启用过。
-      UserDefaults.hamster.keyboardLastActiveAt = Date()
+      // 完全访问标记：只有开完全访问时键盘才能写进组容器；
+      // 没开时写操作不生效，标记缺失=关。主 App 读它显示完全访问状态。
+      // （旧的心跳标记已删：无完全访问时键盘写不进组，那条路不通。）
+      if await self.hasFullAccess {
+        UserDefaults.hamster.fullAccessLastActiveAt = Date()
+      }
+      // 弹出计时起点（viewWillAppear 里已记好）。
+      let popupStart = await self.popupStartTime
 
       // 每次键盘出现都先检查组里部署产物：主 App 重新部署后 build、
       // installation.yaml 或 default.custom.yaml 的时间戳会变，
@@ -905,6 +919,9 @@ private extension KeyboardInputViewController {
       // 每次出现都从组 plist 重读偏好，不依赖 VC 是否重建。
       let configuration = await self.reloadKeyboardConfiguration()
 
+      // 弹出耗时调试开关（默认关）：只在开时才在键盘内显示本次弹出耗时。
+      let showPopupLatency = configuration?.keyboard?.showPopupLatency ?? false
+
       if await rimeContext.isRunning {
         if buildChanged {
           // 重启引擎，让新 build 生效；start 里会重新选方案。
@@ -914,6 +931,7 @@ private extension KeyboardInputViewController {
           // 主 App 里切过方案后不用重启键盘也生效。
           let _ = rimeContext.setupRimeInputSchema()
           await self.applyKeyboardPreferences(configuration)
+          await self.reportPopupLatency(startTime: popupStart, enabled: showPopupLatency)
           return
         }
       }
@@ -927,6 +945,7 @@ private extension KeyboardInputViewController {
         )
       } catch {
         Logger.statistics.error("create keyboard RIME user data directory error: \(error.localizedDescription)")
+        await self.reportPopupLatency(startTime: popupStart, enabled: showPopupLatency)
         return
       }
 
@@ -946,6 +965,7 @@ private extension KeyboardInputViewController {
       await rimeContext.syncTraditionalSimplifiedChineseMode(simplifiedModeKey: simplifiedModeKey)
 
       await self.applyKeyboardPreferences(configuration)
+      await self.reportPopupLatency(startTime: popupStart, enabled: showPopupLatency)
     }
   }
 
@@ -954,6 +974,43 @@ private extension KeyboardInputViewController {
   private func reloadKeyboardConfiguration() -> HamsterConfiguration? {
     keyboardContext.reloadHamsterConfiguration()
     return keyboardContext.hamsterConfiguration
+  }
+
+  /// 上报本次弹出耗时（调试开关开时才显示）。
+  /// 起点：viewWillAppear（键盘即将弹出）；终点：setupRIME 任务结束
+  ///（引擎已启动、方案已应用、偏好已应用，可接受输入）。
+  private func reportPopupLatency(startTime: CFAbsoluteTime, enabled: Bool) async {
+    guard enabled else { return }
+    let milliseconds = max(0, Int((CFAbsoluteTimeGetCurrent() - startTime) * 1000))
+    await MainActor.run { self.showPopupLatencyToast(milliseconds: milliseconds) }
+  }
+
+  /// 在键盘内短暂显示弹出耗时（调试用，3 秒后自动消失；开关关时不创建）。
+  @MainActor
+  private func showPopupLatencyToast(milliseconds: Int) {
+    latencyToastLabel?.removeFromSuperview()
+    let label = UILabel()
+    label.text = "  弹出耗时 \(milliseconds) ms  "
+    label.font = .systemFont(ofSize: 12, weight: .medium)
+    label.textColor = .secondaryLabel
+    label.backgroundColor = UIColor.secondarySystemBackground.withAlphaComponent(0.9)
+    label.layer.cornerRadius = 8
+    label.clipsToBounds = true
+    label.textAlignment = .center
+    label.translatesAutoresizingMaskIntoConstraints = false
+    view.addSubview(label)
+    NSLayoutConstraint.activate([
+      label.centerXAnchor.constraint(equalTo: view.centerXAnchor),
+      label.centerYAnchor.constraint(equalTo: view.centerYAnchor),
+      label.heightAnchor.constraint(equalToConstant: 28),
+    ])
+    latencyToastLabel = label
+    DispatchQueue.main.asyncAfter(deadline: .now() + 3) { [weak self, weak label] in
+      label?.removeFromSuperview()
+      if self?.latencyToastLabel === label {
+        self?.latencyToastLabel = nil
+      }
+    }
   }
 
   func shutdownRIME() {

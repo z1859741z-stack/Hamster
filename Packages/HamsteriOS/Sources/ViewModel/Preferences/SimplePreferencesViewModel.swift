@@ -1,7 +1,8 @@
 //
 //  SimplePreferencesViewModel.swift
 //
-//  精简设置页：只放四项（候选个数、触感开关+强度、中文标点全/半角、emoji 候选开关）。
+//  精简设置页：四项偏好（候选个数、触感开关+强度、中文标点全/半角、Emoji 候选开关）
+//  + 一个调试开关（显示弹出耗时，默认关）。
 //  四项都走现有双写通道（configuration + applicationConfiguration），
 //  靠 didSet 异步写进 App Group 的 build/hamster.plist；键盘每次出现时重读。
 //  不适用方案 A 或已废弃功能的设置项：逐项核对过，没有残留行可删——
@@ -73,6 +74,18 @@ public class SimplePreferencesViewModel {
     }
   }
 
+  // MARK: - 显示弹出耗时（调试开关，默认关）
+
+  public var showPopupLatency: Bool {
+    get {
+      HamsterAppDependencyContainer.shared.configuration.keyboard?.showPopupLatency ?? false
+    }
+    set {
+      HamsterAppDependencyContainer.shared.configuration.keyboard?.showPopupLatency = newValue
+      HamsterAppDependencyContainer.shared.applicationConfiguration.keyboard?.showPopupLatency = newValue
+    }
+  }
+
   // MARK: - 设置表
 
   public lazy var settings: [SettingSectionModel] = [
@@ -124,6 +137,18 @@ public class SimplePreferencesViewModel {
           toggleValue: { [unowned self] in emojiCandidateEnabled },
           toggleHandled: { [unowned self] in
             emojiCandidateEnabled = $0
+          }),
+      ]),
+    .init(
+      title: "调试",
+      footer: "开启后，键盘每次弹出时会在键盘内显示“弹出耗时 x ms”（从弹出到可打字的时间），约 3 秒后消失；关闭后完全不显示。默认关闭。",
+      items: [
+        .init(
+          text: "显示弹出耗时",
+          type: .toggle,
+          toggleValue: { [unowned self] in showPopupLatency },
+          toggleHandled: { [unowned self] in
+            showPopupLatency = $0
           }),
       ]),
   ]

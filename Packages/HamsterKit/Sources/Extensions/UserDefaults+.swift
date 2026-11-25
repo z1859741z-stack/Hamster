@@ -298,15 +298,15 @@ public extension UserDefaults {
     }
   }
 
-  /// 键盘最近一次弹出（启动）的时间戳，供主 App 判断键盘是否启用过。
-  /// 键盘每次出现时更新；主 App 读它，超过 7 天未更新视为未启用。
-  /// 注意：这只能证明键盘曾经启用并运行过，不能证明当前仍处于启用状态。
-  var keyboardLastActiveAt: Date? {
+  /// 完全访问开启时键盘写的时间戳，供主 App 判断完全访问是开还是关。
+  /// 只有开完全访问时键盘才能写进组容器；没开时写操作不生效，所以没有标记=关。
+  /// 注意：关掉完全访问后标记最多残留 7 天，这期间仍会显示“开”。
+  var fullAccessLastActiveAt: Date? {
     get {
-      object(forKey: Self.keyboardLastActiveAtKey) as? Date
+      object(forKey: Self.fullAccessLastActiveAtKey) as? Date
     }
     set {
-      set(newValue, forKey: Self.keyboardLastActiveAtKey)
+      set(newValue, forKey: Self.fullAccessLastActiveAtKey)
     }
   }
 }
@@ -363,7 +363,7 @@ extension UserDefaults {
   private static let currentSchemaForKey = "com.ihsiao.apps.Hamster.UserDefault.keys.currentSchema"
   private static let latestSchemaForKey = "com.ihsiao.apps.Hamster.UserDefault.keys.latestSchemaForKey"
   private static let hotKeys = "com.ihsiao.apps.Hamster.UserDefault.keys.hotKeys"
-  private static let keyboardLastActiveAtKey = "com.ihsiao.apps.Hamster.UserDefaults.keyboardLastActiveAt"
+  private static let fullAccessLastActiveAtKey = "com.ihsiao.apps.Hamster.UserDefaults.fullAccessLastActiveAt"
 
   // MARK: - 补丁
 

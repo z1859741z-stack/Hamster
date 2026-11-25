@@ -22,6 +22,11 @@ public class SettingsViewModel: ObservableObject {
     self.mainViewModel = mainViewModel
     self.rimeViewModel = rimeViewModel
     self.backupViewModel = backupViewModel
+
+    // 回到前台时重新检查键盘状态（用户可能刚在系统设置里启用了键盘）。
+    NotificationCenter.default.publisher(for: UIApplication.willEnterForegroundNotification)
+      .sink { [weak self] _ in self?.tableReloadSubject.send(true) }
+      .store(in: &cancelable)
   }
 
   public var enableColorSchema: Bool {
@@ -34,13 +39,32 @@ public class SettingsViewModel: ObservableObject {
     }
   }
 
-  /// 键盘启用状态（读键盘每次弹出时写的心跳）。
-  /// 只能证明键盘曾经启用并运行过，不能证明当前仍处于启用状态。
-  var keyboardStatusText: String {
-    guard let lastActive = UserDefaults.hamster.keyboardLastActiveAt else {
-      return "未启用或未使用过"
+  /// 键盘扩展的 bundle id（project.pbxproj 里两处一致）。
+  private static let keyboardExtensionBundleID = "dev.fuxiao.app.Hamster.HamsterKeyboard"
+
+  /// 键盘是否已启用：主 App 自己遍历 UITextInputMode.activeInputModes 查扩展 bundle id。
+  /// UITextInputMode 没有公开的 identifier 属性，用 KVC 取 "identifier" 再比对。
+  /// 本 App 走未签名 IPA 分发、不上架 App Store，可以用这招。
+  /// （旧的心跳标记已删：无完全访问时键盘写不进组容器，那条路不通。）
+  var isKeyboardEnabled: Bool {
+    UITextInputMode.activeInputModes.contains { mode in
+      (mode.value(forKey: "identifier") as? String) == Self.keyboardExtensionBundleID
     }
-    return Date().timeIntervalSince(lastActive) <= 7 * 24 * 60 * 60 ? "已启用" : "未启用或未使用过"
+  }
+
+  var keyboardStatusText: String {
+    isKeyboardEnabled ? "已启用" : "未启用"
+  }
+
+  /// 完全访问状态：读键盘开完全访问时写的时间戳标记（7 天内有效）。
+  /// 没开完全访问时键盘写不进组容器，所以没有标记=关。方案 A 不需要开。
+  /// 注意：关掉完全访问后标记最多残留 7 天，这期间仍会显示“开”。
+  var fullAccessStatusText: String {
+    if let lastActive = UserDefaults.hamster.fullAccessLastActiveAt,
+       Date().timeIntervalSince(lastActive) <= 7 * 24 * 60 * 60 {
+      return "开"
+    }
+    return "关（方案 A 不需要）"
   }
 
   /// 打开本 App 在系统设置里的页面，再手动进 通用 → 键盘 → 键盘 → 添加新键盘。
@@ -48,6 +72,43 @@ public class SettingsViewModel: ObservableObject {
   func openSystemSettings() {
     guard let url = URL.keyboardSettings else { return }
     _ = UIApplication.shared.open(url)
+  }
+
+  /// “键盘”区的构建（首页顶部）。状态行每次渲染都重新检查；
+  /// 表格刷新时重建本区（新 id 才会让 cell 重新渲染状态行）。
+  private func makeKeyboardSection() -> SettingSectionModel {
+    SettingSectionModel(
+      title: "键盘",
+      footer: "键盘状态在每次回到本 App 时重新检查。未启用时：设置 → 通用 → 键盘 → 键盘 → 添加新键盘，选择 Hamster。完全访问：方案 A 不需要开。",
+      items: [
+        .init(
+          icon: UIImage(systemName: "keyboard")!,
+          text: "键盘状态",
+          accessoryType: .none,
+          type: .navigation,
+          navigationLinkLabel: { [unowned self] in keyboardStatusText }
+        ),
+        .init(
+          text: "完全访问",
+          accessoryType: .none,
+          type: .navigation,
+          navigationLinkLabel: { [unowned self] in fullAccessStatusText }
+        ),
+        .init(
+          text: "打开系统设置",
+          type: .button,
+          buttonAction: { [unowned self] in
+            openSystemSettings()
+          }
+        ),
+      ])
+  }
+
+  /// 重建“键盘”区（表格刷新时调；新 id 才会让 cell 重新渲染状态行）。
+  func rebuildKeyboardSection() {
+    if let index = sections.firstIndex(where: { $0.title == "键盘" }) {
+      sections[index] = makeKeyboardSection()
+    }
   }
 
 
@@ -101,25 +162,7 @@ public class SettingsViewModel: ObservableObject {
   /// 设置选项
   public lazy var sections: [SettingSectionModel] = {
     let sections = [
-      SettingSectionModel(
-        title: "键盘",
-        footer: "未启用时：设置 → 通用 → 键盘 → 键盘 → 添加新键盘，选择 Hamster。键盘每次弹出时都会更新一次状态，这里只能证明键盘曾经启用并运行过，不能证明当前仍处于启用状态。",
-        items: [
-          .init(
-            icon: UIImage(systemName: "keyboard")!,
-            text: "键盘状态",
-            accessoryType: .none,
-            type: .navigation,
-            navigationLinkLabel: { [unowned self] in keyboardStatusText }
-          ),
-          .init(
-            text: "打开系统设置",
-            type: .button,
-            buttonAction: { [unowned self] in
-              openSystemSettings()
-            }
-          ),
-        ]),
+      makeKeyboardSection(),
       SettingSectionModel(title: "输入相关", items: [
         .init(
           icon: UIImage(systemName: "highlighter")!.withTintColor(.yellow),

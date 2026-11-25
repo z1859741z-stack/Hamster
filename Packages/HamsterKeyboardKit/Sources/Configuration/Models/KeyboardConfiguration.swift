@@ -149,7 +149,10 @@ public struct KeyboardConfiguration: Codable, Hashable {
   // 按键下方边框
   public var enableButtonUnderBorder: Bool?
 
-  public init(useKeyboardType: String? = nil, disableSwipeLabel: Bool? = nil, upSwipeOnLeft: Bool? = nil, swipeLabelUpAndDownLayout: Bool? = nil, swipeLabelUpAndDownIrregularLayout: Bool? = nil, displayButtonBubbles: Bool? = nil, enableKeySounds: Bool? = nil, enableHapticFeedback: Bool? = nil, hapticFeedbackIntensity: Int? = nil, displaySemicolonButton: Bool? = nil, displayClassifySymbolButton: Bool? = nil, displaySpaceLeftButton: Bool? = nil, spaceLeftButtonProcessByRIME: Bool? = nil, keyValueOfSpaceLeftButton: String? = nil, displaySpaceRightButton: Bool? = nil, spaceRightButtonProcessByRIME: Bool? = nil, keyValueOfSpaceRightButton: String? = nil, displayChineseEnglishSwitchButton: Bool? = nil, chineseEnglishSwitchButtonIsOnLeftOfSpaceButton: Bool? = nil, enableNineGridOfNumericKeyboard: Bool? = nil, numberKeyProcessByRimeOnNineGridOfNumericKeyboard: Bool? = nil, leftSymbolProcessByRimeOnNineGridOfNumericKeyboard: Bool? = nil, rightSymbolProcessByRimeOnNineGridOfNumericKeyboard: Bool? = nil, symbolsOfGridOfNumericKeyboard: [String]? = nil, lockShiftState: Bool? = nil, enableEmbeddedInputMode: Bool? = nil, widthOfOneHandedKeyboard: Int? = nil, symbolsOfCursorBack: [String]? = nil, symbolsOfReturnToMainKeyboard: [String]? = nil, symbolsOfChineseNineGridKeyboard: [String]? = nil, pairsOfSymbols: [String]? = nil, enableSymbolKeyboard: Bool? = nil, lockForSymbolKeyboard: Bool? = nil, enableColorSchema: Bool? = nil, useColorSchemaForLight: String? = nil, useColorSchemaForDark: String? = nil, colorSchemas: [KeyboardColorSchema]? = nil, enableLoadingTextForSpaceButton: Bool? = nil, loadingTextForSpaceButton: String? = nil, labelTextForSpaceButton: String? = nil, showCurrentInputSchemaNameForSpaceButton: Bool? = nil, showCurrentInputSchemaNameOnLoadingTextForSpaceButton: Bool? = nil, showUppercasedCharacterOnChineseKeyboard: Bool? = nil, enableButtonUnderBorder: Bool? = nil) {
+  // 显示弹出耗时（调试开关，默认关）：键盘每次弹出到可打字的时间，在键盘内短暂显示。
+  public var showPopupLatency: Bool?
+
+  public init(useKeyboardType: String? = nil, disableSwipeLabel: Bool? = nil, upSwipeOnLeft: Bool? = nil, swipeLabelUpAndDownLayout: Bool? = nil, swipeLabelUpAndDownIrregularLayout: Bool? = nil, displayButtonBubbles: Bool? = nil, enableKeySounds: Bool? = nil, enableHapticFeedback: Bool? = nil, hapticFeedbackIntensity: Int? = nil, displaySemicolonButton: Bool? = nil, displayClassifySymbolButton: Bool? = nil, displaySpaceLeftButton: Bool? = nil, spaceLeftButtonProcessByRIME: Bool? = nil, keyValueOfSpaceLeftButton: String? = nil, displaySpaceRightButton: Bool? = nil, spaceRightButtonProcessByRIME: Bool? = nil, keyValueOfSpaceRightButton: String? = nil, displayChineseEnglishSwitchButton: Bool? = nil, chineseEnglishSwitchButtonIsOnLeftOfSpaceButton: Bool? = nil, enableNineGridOfNumericKeyboard: Bool? = nil, numberKeyProcessByRimeOnNineGridOfNumericKeyboard: Bool? = nil, leftSymbolProcessByRimeOnNineGridOfNumericKeyboard: Bool? = nil, rightSymbolProcessByRimeOnNineGridOfNumericKeyboard: Bool? = nil, symbolsOfGridOfNumericKeyboard: [String]? = nil, lockShiftState: Bool? = nil, enableEmbeddedInputMode: Bool? = nil, widthOfOneHandedKeyboard: Int? = nil, symbolsOfCursorBack: [String]? = nil, symbolsOfReturnToMainKeyboard: [String]? = nil, symbolsOfChineseNineGridKeyboard: [String]? = nil, pairsOfSymbols: [String]? = nil, enableSymbolKeyboard: Bool? = nil, lockForSymbolKeyboard: Bool? = nil, enableColorSchema: Bool? = nil, useColorSchemaForLight: String? = nil, useColorSchemaForDark: String? = nil, colorSchemas: [KeyboardColorSchema]? = nil, enableLoadingTextForSpaceButton: Bool? = nil, loadingTextForSpaceButton: String? = nil, labelTextForSpaceButton: String? = nil, showCurrentInputSchemaNameForSpaceButton: Bool? = nil, showCurrentInputSchemaNameOnLoadingTextForSpaceButton: Bool? = nil, showUppercasedCharacterOnChineseKeyboard: Bool? = nil, enableButtonUnderBorder: Bool? = nil, showPopupLatency: Bool? = nil) {
     self.useKeyboardType = useKeyboardType
     self.disableSwipeLabel = disableSwipeLabel
     self.upSwipeOnLeft = upSwipeOnLeft
@@ -194,6 +197,7 @@ public struct KeyboardConfiguration: Codable, Hashable {
     self.showCurrentInputSchemaNameOnLoadingTextForSpaceButton = showCurrentInputSchemaNameOnLoadingTextForSpaceButton
     self.showUppercasedCharacterOnChineseKeyboard = showUppercasedCharacterOnChineseKeyboard
     self.enableButtonUnderBorder = enableButtonUnderBorder
+    self.showPopupLatency = showPopupLatency
   }
 
   public init(from decoder: Decoder) throws {
@@ -242,6 +246,7 @@ public struct KeyboardConfiguration: Codable, Hashable {
     self.showCurrentInputSchemaNameOnLoadingTextForSpaceButton = try container.decodeIfPresent(Bool.self, forKey: .showCurrentInputSchemaNameOnLoadingTextForSpaceButton)
     self.showUppercasedCharacterOnChineseKeyboard = try container.decodeIfPresent(Bool.self, forKey: .showUppercasedCharacterOnChineseKeyboard)
     self.enableButtonUnderBorder = try container.decodeIfPresent(Bool.self, forKey: .enableButtonUnderBorder)
+    self.showPopupLatency = try container.decodeIfPresent(Bool.self, forKey: .showPopupLatency)
   }
 
   enum CodingKeys: CodingKey {
@@ -289,6 +294,7 @@ public struct KeyboardConfiguration: Codable, Hashable {
     case showCurrentInputSchemaNameOnLoadingTextForSpaceButton
     case showUppercasedCharacterOnChineseKeyboard
     case enableButtonUnderBorder
+    case showPopupLatency
   }
 
   public func encode(to encoder: Encoder) throws {
@@ -337,5 +343,6 @@ public struct KeyboardConfiguration: Codable, Hashable {
     try container.encodeIfPresent(self.showCurrentInputSchemaNameOnLoadingTextForSpaceButton, forKey: .showCurrentInputSchemaNameOnLoadingTextForSpaceButton)
     try container.encodeIfPresent(self.showUppercasedCharacterOnChineseKeyboard, forKey: .showUppercasedCharacterOnChineseKeyboard)
     try container.encodeIfPresent(self.enableButtonUnderBorder, forKey: .enableButtonUnderBorder)
+    try container.encodeIfPresent(self.showPopupLatency, forKey: .showPopupLatency)
   }
 }

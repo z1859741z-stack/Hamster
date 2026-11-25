@@ -98,6 +98,8 @@ public class SettingsRootView: NibLessView {
 
 public extension SettingsRootView {
   func tableReload() {
+    // 先重建“键盘”区（新 id 才会让 cell 重新渲染状态行），再刷新表格。
+    settingsViewModel.rebuildKeyboardSection()
     settingsViewModel.reloadFavoriteButton()
     tableView.reloadData()
   }

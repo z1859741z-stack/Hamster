@@ -1,7 +1,7 @@
 //
 //  SimplePreferencesViewController.swift
 //
-//  精简设置页：候选个数、触感开关+强度、中文标点全/半角、Emoji 候选开关。
+//  精简设置页：候选个数、触感开关+强度、中文标点全/半角、Emoji 候选开关、显示弹出耗时（调试，默认关）。
 //
 
 import HamsterUIKit
