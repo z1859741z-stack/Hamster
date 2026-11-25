@@ -79,9 +79,10 @@ public final class AppUpdateChecker {
 
   /// tag 形如 v3.0.0-ethan.1：去 v 前缀、取横杠前的版本号核心，与当前版本做数字比较。
   static func isNewerThanCurrent(tag: String) -> Bool {
-    let core = tag.trimmingCharacters(in: .whitespacesAndNewlines)
-      .trimmingPrefix("v")
-      .split(separator: "-", maxSplits: 1).first.map(String.init) ?? ""
+    // trimmingPrefix 要 iOS 16+，最低版本是 iOS 15.0，改用 hasPrefix + dropFirst。
+    let trimmed = tag.trimmingCharacters(in: .whitespacesAndNewlines)
+    let withoutV = trimmed.hasPrefix("v") ? String(trimmed.dropFirst()) : trimmed
+    let core = withoutV.split(separator: "-", maxSplits: 1).first.map(String.init) ?? ""
     let remote = core.split(separator: ".").compactMap { Int($0) }
     let local = (Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "")
       .split(separator: ".").compactMap { Int($0) }
