@@ -36,6 +36,9 @@ public extension FileManager {
   /// src: 拷贝源 URL
   /// dst: 拷贝地址 URL
   static func copyDirectory(override: Bool = false, src: URL, dst: URL) throws {
+    // 源和目标是同一目录时直接返回：否则 override 会先删掉目标，
+    // 也就是把源自己删了（App Group 不可用退回沙盒时会出现这种情况）。
+    guard src.standardizedFileURL != dst.standardizedFileURL else { return }
     let fm = FileManager.default
     if fm.fileExists(atPath: dst.path) {
       if override {
@@ -252,14 +255,23 @@ public extension FileManager {
   // 注意：AppGroup已变为Keyboard复制方案使用的中转站
   // App内部使用位置在 Document 和 iCloud 下
   static var shareURL: URL {
-    FileManager.default.containerURL(
-      forSecurityApplicationGroupIdentifier: HamsterConstants.appGroupName)!
-      .appendingPathComponent("InputSchema")
+    // 重签证书不带 App Group 时 containerURL 返回 nil，之前这里强解直接闪退。
+    // 不可用时退回沙盒目录：AppGroup 下的 Rime/SharedSupport 子目录
+    // 正好就是沙盒的 Rime/SharedSupport，部署流程无需改动。
+    if let groupURL = FileManager.default.containerURL(
+      forSecurityApplicationGroupIdentifier: HamsterConstants.appGroupName) {
+      return groupURL.appendingPathComponent("InputSchema")
+    }
+    Logger.statistics.warning("App Group 不可用，已退回沙盒目录部署：\(HamsterConstants.appGroupName)")
+    return sandboxDirectory
   }
 
   static var sandboxDirectory: URL {
-    try! FileManager.default
-      .url(for: .documentDirectory, in: .userDomainMask, appropriateFor: nil, create: true)
+    if let url = try? FileManager.default
+      .url(for: .documentDirectory, in: .userDomainMask, appropriateFor: nil, create: true) {
+      return url
+    }
+    return URL(fileURLWithPath: NSHomeDirectory()).appendingPathComponent("Documents")
   }
 
   // AppGroup共享下: SharedSupport目录
@@ -395,6 +407,10 @@ public extension FileManager {
 
     let src = appSharedSupportDirectory.appendingPathComponent(HamsterConstants.inputSchemaZipFile)
 
+    guard fm.fileExists(atPath: src.path) else {
+      throw "缺少内置方案：\(src.lastPathComponent) 不存在，请重新安装 App"
+    }
+
     Logger.statistics.debug("unzip src: \(src), dst: \(dst)")
 
     // 解压缩输入方案zip文件
@@ -416,6 +432,10 @@ public extension FileManager {
 
     if unzip {
       let src = appSharedSupportDirectory.appendingPathComponent(HamsterConstants.userDataZipFile)
+
+      guard FileManager.default.fileExists(atPath: src.path) else {
+        throw "缺少内置方案：\(src.lastPathComponent) 不存在，请重新安装 App"
+      }
 
       // 解压缩输入方案zip文件
       try FileManager.default.unzipItem(at: src, to: sandboxUserDataDirectory)
