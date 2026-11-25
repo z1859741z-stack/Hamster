@@ -111,9 +111,8 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate, UISceneDelegate {
   func sceneWillResignActive(_ scene: UIScene) {
     let application = UIApplication.shared
     let rimeDeploy = UIApplicationShortcutItem(type: "RIME", localizedTitle: ShortcutItemType.rimeDeploy.rawValue)
-    let rimeSync = UIApplicationShortcutItem(type: "RIME", localizedTitle: ShortcutItemType.rimeSync.rawValue)
 //    let rimeReset = UIApplicationShortcutItem(type: "RIME", localizedTitle: ShortcutItemType.rimeReset.rawValue)
-    application.shortcutItems = [rimeDeploy, rimeSync]
+    application.shortcutItems = [rimeDeploy]
   }
 
   func sceneWillEnterForeground(_ scene: UIScene) {
