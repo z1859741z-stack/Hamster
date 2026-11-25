@@ -88,6 +88,30 @@ public class RimeContext {
   @MainActor
   public lazy var asciiMode: Bool = false
 
+  // MARK: - TODO(临时诊断)：定位后删除
+  /// RIME 启动是否失败（候选栏据此决定是否显示诊断行）。
+  public private(set) var rimeStartFailed = false
+  /// 诊断行文本：组名、RIME 初始化结果、当前方案、ascii_mode、错误。
+  public private(set) var diagnosticText = "诊断：RIME 初始化中…"
+  private let diagnosticTextSubject = PassthroughSubject<String, Never>()
+  public var diagnosticTextPublished: AnyPublisher<String, Never> {
+    diagnosticTextSubject.eraseToAnyPublisher()
+  }
+
+  @MainActor
+  func publishDiagnostic(failed: Bool, schemaId: String?, failure: String?) {
+    rimeStartFailed = failed
+    let group = AppGroupResolver.resolvedGroupName ?? "无"
+    let groupState = AppGroupResolver.isAvailable ? "可用" : "不可用"
+    let mode = asciiMode ? "英" : "中"
+    var text = "组 \(group) \(groupState) | RIME \(failed ? "失败" : "OK") \(schemaId ?? "无方案") \(mode)"
+    if let failure {
+      text += " \(failure)"
+    }
+    diagnosticText = text
+    diagnosticTextSubject.send(text)
+  }
+
   /// 候选字
   @MainActor @Published
   public var suggestions: [CandidateSuggestion] = []
@@ -199,17 +223,42 @@ public extension RimeContext {
   func start(hasFullAccess: Bool) async {
     Rime.shared.setNotificationDelegate(self)
 
-    // 启动
+    var failure: String?
+    // 无完全访问：组目录只读。先把主 App 在组里部署好的产物（Rime/build 等）
+    // 同步到键盘自己的沙盒，再启动引擎；键盘里不触发部署，
+    // 引擎要写的东西（用户词典、日志、user.yaml）全部走键盘沙盒。
+    if !hasFullAccess {
+      do {
+        try FileManager.syncAppGroupRimeBuildToSandbox()
+      } catch {
+        failure = "同步部署产物失败：\(error.localizedDescription)"
+        Logger.statistics.error("rime keyboard sync prebuilt error: \(error.localizedDescription)")
+      }
+    }
+
+    // 启动。prebuiltDataDir 指到组里主 App 部署好的 Rime/build：
+    // SharedSupport.zip 是 source-only、里面没有 .bin，
+    // 默认的 ${shared_data_dir}/build 是空的。
     Rime.shared.start(Rime.createTraits(
       sharedSupportDir: FileManager.appGroupSharedSupportDirectoryURL.path,
-      userDataDir: hasFullAccess ? FileManager.appGroupUserDataDirectoryURL.path : FileManager.sandboxUserDataDirectory.path
+      userDataDir: hasFullAccess ? FileManager.appGroupUserDataDirectoryURL.path : FileManager.sandboxUserDataDirectory.path,
+      prebuiltDataDir: FileManager.appGroupUserDataDirectoryURL.appendingPathComponent("build", isDirectory: true).path
     ))
 
     // 设置初始输入方案
-    setupRimeInputSchema()
+    let (schemaId, schemaOK) = setupRimeInputSchema()
+    if !schemaOK, failure == nil {
+      failure = "选方案失败"
+    }
 
-    // 中英状态同步
+    // 默认中文模式
+    Rime.shared.asciiMode(false)
     await setAsciiMode(Rime.shared.isAsciiMode())
+
+    if !Rime.shared.isRunning(), failure == nil {
+      failure = "会话未建立"
+    }
+    await publishDiagnostic(failed: failure != nil, schemaId: schemaId, failure: failure)
   }
 
   /// RIME 关闭
@@ -452,19 +501,20 @@ public extension RimeContext {
 
 public extension RimeContext {
   /// 设置用户输入方案
-  func setupRimeInputSchema() {
+  /// 返回选中的方案 ID 与 selectSchema 是否成功：失败会被调用方记进诊断，不再静默。
+  func setupRimeInputSchema() -> (schemaId: String?, ok: Bool) {
     let schema: RimeSchema
     if let currentSchema = currentSchema {
       schema = currentSchema
+    } else if let first = selectSchemas.first {
+      schema = first
     } else {
-      guard let currentSchema = selectSchemas.first else {
-        Logger.statistics.error("rime select schemas is empty.")
-        return
-      }
-      schema = currentSchema
+      Logger.statistics.error("rime select schemas is empty.")
+      return (nil, false)
     }
     let handle = Rime.shared.setSchema(schema.schemaId)
     Logger.statistics.info("self.rimeEngine set schema: \(schema.schemaName), handle = \(handle)")
+    return (schema.schemaId, handle)
   }
 
   /// 切换最近一次输入方案

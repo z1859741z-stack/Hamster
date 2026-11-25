@@ -472,6 +472,60 @@ public extension FileManager {
     try FileManager.copyDirectory(override: override, src: sandboxUserDataDirectory, dst: appGroupUserDataDirectoryURL)
   }
 
+  /// 将组里主 App 部署好的 RIME 产物同步到键盘沙盒（仅键盘无完全访问时用）。
+  /// 只读组目录：同步 build/（已编译的 .bin）、installation.yaml、default.custom.yaml；
+  /// 不碰 user.yaml 与 *.userdb，键盘本地的学习数据留在沙盒。
+  /// 组不可用时 shareURL 已退回沙盒，src == dst，直接返回。
+  /// 用键盘本地签名（文件数-总字节-最新修改时间）判断是否需要同步，不依赖共享标记。
+  static func syncAppGroupRimeBuildToSandbox() throws {
+    let fm = FileManager.default
+    let srcUserDir = appGroupUserDataDirectoryURL
+    let dstUserDir = sandboxUserDataDirectory
+    guard srcUserDir.standardizedFileURL != dstUserDir.standardizedFileURL else { return }
+
+    let srcBuild = srcUserDir.appendingPathComponent("build", isDirectory: true)
+    guard fm.fileExists(atPath: srcBuild.path) else {
+      throw "组里没有已部署的 RIME 产物（缺少 Rime/build），请先在主 App 里重新部署"
+    }
+
+    let signatureKey = "hamster.keyboard.rimeBuildSignature"
+    let dstBuild = dstUserDir.appendingPathComponent("build", isDirectory: true)
+    let dstHasBin = (try? fm.contentsOfDirectory(atPath: dstBuild.path))?.contains { $0.hasSuffix(".bin") } ?? false
+    if let signature = buildSignature(of: srcBuild),
+       UserDefaults.standard.string(forKey: signatureKey) == signature, dstHasBin {
+      return
+    }
+
+    try copyDirectory(override: true, src: srcBuild, dst: dstBuild)
+    for name in ["installation.yaml", "default.custom.yaml"] {
+      let src = srcUserDir.appendingPathComponent(name)
+      let dst = dstUserDir.appendingPathComponent(name)
+      guard fm.fileExists(atPath: src.path) else { continue }
+      if fm.fileExists(atPath: dst.path), fm.contentsEqual(atPath: src.path, andPath: dst.path) { continue }
+      if fm.fileExists(atPath: dst.path) { try fm.removeItem(at: dst) }
+      try fm.copyItem(at: src, to: dst)
+    }
+    if let signature = buildSignature(of: srcBuild) {
+      UserDefaults.standard.set(signature, forKey: signatureKey)
+    }
+  }
+
+  /// 部署产物的本地签名：文件数-总字节-最新修改时间。
+  private static func buildSignature(of dir: URL) -> String? {
+    let fm = FileManager.default
+    guard let names = try? fm.contentsOfDirectory(atPath: dir.path) else { return nil }
+    var count = 0
+    var total: UInt64 = 0
+    var latest: TimeInterval = 0
+    for name in names {
+      guard let attrs = try? fm.attributesOfItem(atPath: dir.appendingPathComponent(name).path) else { continue }
+      count += 1
+      total += (attrs[.size] as? NSNumber)?.uint64Value ?? 0
+      latest = max(latest, (attrs[.modificationDate] as? Date)?.timeIntervalSince1970 ?? 0)
+    }
+    return "\(count)-\(total)-\(Int(latest))"
+  }
+
   /// 拷贝 Sandbox 下 SharedSupport 目录至 AppGroup 下 SharedSupport 目录
   static func copySandboxSharedSupportDirectoryToAppGroup(_ filterRegex: [String] = [], filterMatchBreak: Bool = true) throws {
     Logger.statistics.info("rime copySandboxSharedSupportDirectoryToAppGroupSharedSupportDirectory: fileRegex \(filterRegex)")

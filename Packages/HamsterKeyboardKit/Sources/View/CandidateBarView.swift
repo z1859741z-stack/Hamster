@@ -5,6 +5,7 @@
 //  Created by morse on 2023/8/19.
 //
 
+import Combine
 import HamsterKit
 import HamsterUIKit
 import UIKit
@@ -30,6 +31,20 @@ public class CandidateBarView: NibLessView {
   private var keyboardContext: KeyboardContext
   private var rimeContext: RimeContext
   private var userInterfaceStyle: UIUserInterfaceStyle
+  private var subscriptions = Set<AnyCancellable>()
+
+  /// TODO(临时诊断)：定位后删除。候选栏顶部一行小字。
+  lazy var diagnosticLabel: UILabel = {
+    let label = UILabel(frame: .zero)
+    label.textAlignment = .left
+    label.numberOfLines = 1
+    label.adjustsFontSizeToFitWidth = true
+    label.minimumScaleFactor = 0.5
+    label.font = .systemFont(ofSize: 10)
+    label.textColor = .secondaryLabel
+    label.translatesAutoresizingMaskIntoConstraints = false
+    return label
+  }()
 
   /// 拼音Label
   lazy var phoneticLabel: UILabel = {
@@ -125,6 +140,13 @@ public class CandidateBarView: NibLessView {
     super.init(frame: .zero)
 
     setupContentView()
+
+    // TODO(临时诊断)：定位后删除
+    diagnosticLabel.text = rimeContext.diagnosticText
+    rimeContext.diagnosticTextPublished
+      .receive(on: DispatchQueue.main)
+      .sink { [weak self] in self?.diagnosticLabel.text = $0 }
+      .store(in: &subscriptions)
   }
 
   func setupContentView() {
@@ -135,6 +157,8 @@ public class CandidateBarView: NibLessView {
 
   /// 构建视图层次
   override public func constructViewHierarchy() {
+    // TODO(临时诊断)：定位后删除
+    addSubview(diagnosticLabel)
     // 非内嵌模式添加拼写区域
     if !keyboardContext.enableEmbeddedInputMode {
       addSubview(phoneticLabel)
@@ -154,11 +178,19 @@ public class CandidateBarView: NibLessView {
     let controlStateHeight: CGFloat = keyboardContext.heightOfToolbar - (keyboardContext.enableEmbeddedInputMode ? 0 : codingAreaHeight)
     let candidatesView = keyboardContext.swipePaging ? candidatesArea : candidatesPagingArea
 
+    // TODO(临时诊断)：定位后删除。诊断行占顶部 16pt，下方内容整体下移。
+    NSLayoutConstraint.activate([
+      diagnosticLabel.topAnchor.constraint(equalTo: topAnchor),
+      diagnosticLabel.leadingAnchor.constraint(equalTo: leadingAnchor, constant: buttonInsets.left),
+      diagnosticLabel.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -buttonInsets.right),
+      diagnosticLabel.heightAnchor.constraint(equalToConstant: 16)
+    ])
+
     /// 内嵌模式
     if keyboardContext.enableEmbeddedInputMode {
       if keyboardContext.swipePaging {
         NSLayoutConstraint.activate([
-          candidatesView.topAnchor.constraint(equalTo: topAnchor),
+          candidatesView.topAnchor.constraint(equalTo: diagnosticLabel.bottomAnchor),
           candidatesView.bottomAnchor.constraint(equalTo: bottomAnchor),
           candidatesView.leadingAnchor.constraint(equalTo: leadingAnchor, constant: buttonInsets.left),
           candidatesView.trailingAnchor.constraint(equalTo: controlStateView.leadingAnchor),
@@ -170,7 +202,7 @@ public class CandidateBarView: NibLessView {
         ])
       } else {
         NSLayoutConstraint.activate([
-          candidatesView.topAnchor.constraint(equalTo: topAnchor),
+          candidatesView.topAnchor.constraint(equalTo: diagnosticLabel.bottomAnchor),
           candidatesView.bottomAnchor.constraint(equalTo: bottomAnchor),
           candidatesView.leadingAnchor.constraint(equalTo: leadingAnchor, constant: buttonInsets.left),
           candidatesView.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -buttonInsets.right)
@@ -181,7 +213,7 @@ public class CandidateBarView: NibLessView {
         NSLayoutConstraint.activate([
           phoneticLabel.leadingAnchor.constraint(equalTo: leadingAnchor, constant: buttonInsets.left),
           phoneticLabel.trailingAnchor.constraint(equalTo: trailingAnchor),
-          phoneticLabel.topAnchor.constraint(equalTo: topAnchor),
+          phoneticLabel.topAnchor.constraint(equalTo: diagnosticLabel.bottomAnchor),
           phoneticLabel.heightAnchor.constraint(equalToConstant: codingAreaHeight),
 
           candidatesView.topAnchor.constraint(equalTo: phoneticLabel.bottomAnchor),
@@ -198,7 +230,7 @@ public class CandidateBarView: NibLessView {
         NSLayoutConstraint.activate([
           phoneticLabel.leadingAnchor.constraint(equalTo: leadingAnchor, constant: buttonInsets.left),
           phoneticLabel.trailingAnchor.constraint(equalTo: trailingAnchor),
-          phoneticLabel.topAnchor.constraint(equalTo: topAnchor),
+          phoneticLabel.topAnchor.constraint(equalTo: diagnosticLabel.bottomAnchor),
           phoneticLabel.heightAnchor.constraint(equalToConstant: codingAreaHeight),
 
           candidatesView.topAnchor.constraint(equalTo: phoneticLabel.bottomAnchor),

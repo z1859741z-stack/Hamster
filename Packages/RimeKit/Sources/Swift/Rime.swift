@@ -45,10 +45,16 @@ public class Rime {
     return rimeAPI
   }
 
-  public static func createTraits(sharedSupportDir: String, userDataDir: String, models: [String] = []) -> IRimeTraits {
+  public static func createTraits(sharedSupportDir: String, userDataDir: String, prebuiltDataDir: String? = nil, models: [String] = []) -> IRimeTraits {
     let traits = IRimeTraits()
     traits.sharedDataDir = sharedSupportDir
     traits.userDataDir = userDataDir
+    // 预先构建的数据目录，默认是 ${shared_data_dir}/build。
+    // 离线包的 SharedSupport.zip 是 source-only、里面没有 .bin，
+    // 键盘无完全访问时把它指到组里主 App 部署好的 Rime/build。
+    if let prebuiltDataDir {
+      traits.prebuiltDataDir = prebuiltDataDir
+    }
     traits.distributionCodeName = "Hamster"
     traits.distributionName = "Hamster"
     traits.distributionVersion = Bundle.main.infoDictionary?["CFBundleVersion"] as? String ?? ""
