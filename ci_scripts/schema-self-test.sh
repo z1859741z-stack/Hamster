@@ -7,6 +7,9 @@ BUILDER="$ROOT/ci_scripts/build-schema-fixed.sh"
 bash -n "$BUILDER"
 grep -Fq 'ICE_REF="927e1cf1d3eeb9bf4be85e3f684dba4dd485b6f6"' "$BUILDER"
 grep -Fq 'PRELUDE_REF="082425ea0684bca36474415d4a0e8db9b016487e"' "$BUILDER"
+grep -Fq 'WANXIANG_GRAM_SHA256="e9ddd501b7d536bc5ea1346f8f900ae49a719a05be349e0a17cb27e717143ca5"' "$BUILDER"
+grep -Fq 'WANXIANG_GRAM_SIZE="390786092"' "$BUILDER"
+grep -Fq 'wanxiang-lts-zh-hans.gram' "$BUILDER"
 # rime-essay was dropped in the 2026-11-25 slim-down (no schema imports
 # essay.txt); its pin is intentionally gone, do not re-add the check.
 grep -Fq 'codeload.github.com' "$BUILDER"
@@ -26,8 +29,12 @@ for raw in sys.argv[1:]:
         assert z.testzip() is None, p
         names = set(z.namelist())
         if p.name == "SharedSupport.zip":
-            for required in ("default.yaml", "hamster.yaml", "rime_ice.schema.yaml", "rime_ice.dict.yaml"):
+            for required in ("default.yaml", "hamster.yaml", "rime_ice.schema.yaml", "rime_ice.dict.yaml",
+                             "rime_ice.custom.yaml", "wanxiang-lts-zh-hans.gram"):
                 assert required in names, (p, required)
+            with z.open("wanxiang-lts-zh-hans.gram") as f:
+                assert f.read(32).startswith(b"Rime::Grammar/1.0"), p
+            assert z.getinfo("wanxiang-lts-zh-hans.gram").file_size == 390786092, p
             assert any(n.startswith("Licenses/") for n in names), p
             assert not any(n.endswith((".bin", ".prism.bin", ".table.bin")) for n in names), p
 print("schema-self-test: PASS")

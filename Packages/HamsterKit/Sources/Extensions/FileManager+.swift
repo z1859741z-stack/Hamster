@@ -466,6 +466,74 @@ public extension FileManager {
     try FileManager.copyDirectory(override: override, src: sandboxSharedSupportDirectory, dst: appGroupSharedSupportDirectoryURL)
   }
 
+  /// 分块算一个文件的 SHA-256（不把整个文件读进内存，373 MB 的模型也能算）。
+  static func sha256Hex(of url: URL) -> String? {
+    guard let handle = try? FileHandle(forReadingFrom: url) else { return nil }
+    defer { try? handle.close() }
+    var context = CC_SHA256_CTX()
+    CC_SHA256_Init(&context)
+    while true {
+      guard let chunk = try? handle.read(upToCount: 1024 * 1024), !chunk.isEmpty else { break }
+      chunk.withUnsafeBytes { CC_SHA256_Update(&context, $0.baseAddress, CC_LONG(chunk.count)) }
+    }
+    var digest = [UInt8](repeating: 0, count: Int(CC_SHA256_DIGEST_LENGTH))
+    CC_SHA256_Final(&digest, &context)
+    return digest.map { String(format: "%02x", $0) }.joined()
+  }
+
+  /// 将沙盒 SharedSupport 同步到 App Group，但保留组里已有的语法模型文件。
+  /// 其余文件与 copyDirectory(override: true) 的终态一致：组里多余的旧文件会被
+  /// 清掉，沙盒里新增或改动的文件会被拷过去；只有 .gram 不参与这次同步，
+  /// 由 syncGrammarModelToAppGroupIfNeeded 单独按 sha256 门控处理。
+  static func syncSandboxSharedSupportDirectoryToAppGroupPreservingGrammar() throws {
+    let fm = FileManager.default
+    let src = sandboxSharedSupportDirectory
+    let dst = appGroupSharedSupportDirectoryURL
+    guard src.standardizedFileURL != dst.standardizedFileURL else { return }
+    if !fm.fileExists(atPath: dst.path) {
+      try fm.createDirectory(at: dst, withIntermediateDirectories: true)
+    }
+    // 清掉组里除语法模型外的全部旧内容（与 override 语义一致）。
+    if let items = try? fm.contentsOfDirectory(atPath: dst.path) {
+      for item in items where item != HamsterConstants.grammarModelFileName {
+        try fm.removeItem(at: dst.appendingPathComponent(item))
+      }
+    }
+    // 增量拷：内容相同的文件跳过；.gram 不参与。
+    let gramPattern = NSRegularExpression.escapedPattern(for: HamsterConstants.grammarModelFileName) + "$"
+    try FileManager.incrementalCopy(src: src, dst: dst, filterRegex: [gramPattern], filterMatchBreak: true)
+  }
+
+  /// 将语法模型（万象 .gram）同步到 App Group：只在组里缺失或 sha256 变了才拷；
+  /// 关掉开关时删掉组里的模型。键盘直接读组里的路径，绝不复制进键盘沙盒。
+  static func syncGrammarModelToAppGroupIfNeeded(enabled: Bool) throws {
+    let fm = FileManager.default
+    let src = sandboxSharedSupportDirectory.appendingPathComponent(HamsterConstants.grammarModelFileName)
+    let dst = appGroupSharedSupportDirectoryURL.appendingPathComponent(HamsterConstants.grammarModelFileName)
+    guard src.standardizedFileURL != dst.standardizedFileURL else { return }
+    if !enabled {
+      if fm.fileExists(atPath: dst.path) {
+        Logger.statistics.info("rime grammar model disabled, removing from App Group")
+        try fm.removeItem(at: dst)
+      }
+      return
+    }
+    guard fm.fileExists(atPath: src.path) else {
+      Logger.statistics.warning("rime grammar model missing in sandbox SharedSupport, skipping sync")
+      return
+    }
+    if fm.fileExists(atPath: dst.path),
+       let srcHash = sha256Hex(of: src), let dstHash = sha256Hex(of: dst), srcHash == dstHash {
+      Logger.statistics.info("rime grammar model already in App Group with same sha256, skipping copy")
+      return
+    }
+    if fm.fileExists(atPath: dst.path) {
+      try fm.removeItem(at: dst)
+    }
+    Logger.statistics.info("rime copying grammar model to App Group")
+    try fm.copyItem(at: src, to: dst)
+  }
+
   // 同步 Sandbox 目录下 UserData 目录至 AppGroup 目录
   static func syncSandboxUserDataDirectoryToAppGroup(override: Bool = false) throws {
     Logger.statistics.info("rime syncSandboxUserDataDirectoryToApGroup: override \(override)")

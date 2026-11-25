@@ -61,6 +61,17 @@ public class RimeViewModel {
     }
   }
 
+  // 是否启用语法模型（万象）。默认开；切换后要点「重新部署」才生效。
+  public var grammarModelEnabled: Bool {
+    get {
+      HamsterAppDependencyContainer.shared.configuration.rime?.grammarModelEnabled ?? true
+    }
+    set {
+      HamsterAppDependencyContainer.shared.configuration.rime?.grammarModelEnabled = newValue
+      HamsterAppDependencyContainer.shared.applicationConfiguration.rime?.grammarModelEnabled = newValue
+    }
+  }
+
   lazy var settings: [SettingSectionModel] = [
     .init(
       title: "简繁切换",
@@ -86,6 +97,19 @@ public class RimeViewModel {
           toggleValue: { [unowned self] in overrideDictFiles },
           toggleHandled: { [unowned self] in
             overrideDictFiles = $0
+          }
+        ),
+      ]
+    ),
+    .init(
+      footer: "语法模型（万象）参与整句断词与候选排序。切换后点下面的「重新部署」才生效；关掉可以与不带模型的效果对比。",
+      items: [
+        .init(
+          text: "启用语法模型（万象）",
+          type: .toggle,
+          toggleValue: { [unowned self] in grammarModelEnabled },
+          toggleHandled: { [unowned self] in
+            grammarModelEnabled = $0
           }
         ),
       ]
@@ -225,7 +249,8 @@ public extension RimeViewModel {
   func rimeRest() async {
     await ProgressHUD.animate("RIME重置中, 请稍候……", interaction: false)
     do {
-      try rimeContext.restRime()
+      // 重置会把配置恢复默认（语法模型开关回到默认开），所以先把当前值传进去。
+      try rimeContext.restRime(grammarModelEnabled: grammarModelEnabled)
 
       // 重置应用配置
       HamsterAppDependencyContainer.shared.resetHamsterConfiguration()

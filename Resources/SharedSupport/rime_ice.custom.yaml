@@ -1,0 +1,17 @@
+# rime_ice 的语法模型（万象）补丁。仅 exp/octagram 分支。
+# 参数照抄 rime-ice 官方 others/recipes/grammar.recipe.yaml。
+# translator/contextual_suggestions 必须为 false：设 true 有真实崩溃报告
+# （Squirrel 1.1.2 / librime 1.16，GramDb::Lookup SIGSEGV），万象官方默认也是 false。
+# 开关在主 App 的 RIME 设置里（语法模型），关掉后部署时主 App 会把本文件
+# 从沙盒 SharedSupport 里拿掉再部署，编出的方案就不带 grammar。
+patch:
+  grammar:
+    language: wanxiang-lts-zh-hans
+    collocation_max_length: 6
+    collocation_min_length: 3
+    collocation_penalty: -14
+    non_collocation_penalty: -6
+    weak_collocation_penalty: -100
+    rear_penalty: -20
+  translator/contextual_suggestions: false
+  translator/max_homophones: 8

@@ -29,12 +29,19 @@ public struct RimeConfiguration: Codable, Hashable {
   /// 使用场景：在文件管理功能中，拷贝键盘词库文件至应用
   public var regexOnCopyAppGroupDictFile: [String]?
 
-  public init(maximumNumberOfCandidateWords: Int? = nil, keyValueOfSwitchSimplifiedAndTraditional: String? = nil, overrideDictFiles: Bool? = nil, regexOnOverrideDictFiles: [String]? = nil, regexOnCopyAppGroupDictFile: [String]? = nil) {
+  /// 是否启用语法模型（万象，octagram 插件）。
+  /// 开着时部署会把 rime_ice.custom.yaml 的 grammar 补丁编进方案，并把
+  /// wanxiang-lts-zh-hans.gram 同步到 App Group；关掉时不编补丁、不拷模型，
+  /// 切换后要点「重新部署」才生效。nil 时按开启处理。
+  public var grammarModelEnabled: Bool?
+
+  public init(maximumNumberOfCandidateWords: Int? = nil, keyValueOfSwitchSimplifiedAndTraditional: String? = nil, overrideDictFiles: Bool? = nil, regexOnOverrideDictFiles: [String]? = nil, regexOnCopyAppGroupDictFile: [String]? = nil, grammarModelEnabled: Bool? = nil) {
     self.maximumNumberOfCandidateWords = maximumNumberOfCandidateWords
     self.keyValueOfSwitchSimplifiedAndTraditional = keyValueOfSwitchSimplifiedAndTraditional
     self.overrideDictFiles = overrideDictFiles
     self.regexOnOverrideDictFiles = regexOnOverrideDictFiles
     self.regexOnCopyAppGroupDictFile = regexOnCopyAppGroupDictFile
+    self.grammarModelEnabled = grammarModelEnabled
   }
 
   public init(from decoder: Decoder) throws {
@@ -44,6 +51,7 @@ public struct RimeConfiguration: Codable, Hashable {
     self.overrideDictFiles = try container.decodeIfPresent(Bool.self, forKey: .overrideDictFiles)
     self.regexOnOverrideDictFiles = try container.decodeIfPresent([String].self, forKey: .regexOnOverrideDictFiles)
     self.regexOnCopyAppGroupDictFile = try container.decodeIfPresent([String].self, forKey: .regexOnCopyAppGroupDictFile)
+    self.grammarModelEnabled = try container.decodeIfPresent(Bool.self, forKey: .grammarModelEnabled)
   }
 
   enum CodingKeys: CodingKey {
@@ -52,6 +60,7 @@ public struct RimeConfiguration: Codable, Hashable {
     case overrideDictFiles
     case regexOnOverrideDictFiles
     case regexOnCopyAppGroupDictFile
+    case grammarModelEnabled
   }
 
   public func encode(to encoder: Encoder) throws {
@@ -61,5 +70,6 @@ public struct RimeConfiguration: Codable, Hashable {
     try container.encodeIfPresent(self.overrideDictFiles, forKey: .overrideDictFiles)
     try container.encodeIfPresent(self.regexOnOverrideDictFiles, forKey: .regexOnOverrideDictFiles)
     try container.encodeIfPresent(self.regexOnCopyAppGroupDictFile, forKey: .regexOnCopyAppGroupDictFile)
+    try container.encodeIfPresent(self.grammarModelEnabled, forKey: .grammarModelEnabled)
   }
 }

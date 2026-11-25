@@ -246,6 +246,15 @@ public extension RimeContext {
     // 不动用户数据目录，学习数据和自定义方案不受影响。
     try FileManager.initSandboxSharedSupportDirectory(override: true)
 
+    // 语法模型开关：关掉时把补丁文件从沙盒 SharedSupport 里拿掉，
+    // 让部署器编出的方案不带 grammar；开着时文件留在原地。
+    // 补丁文件由内置 SharedSupport.zip 解压得到，每次部署都会重新出现，
+    // 所以每次部署都要按开关处理一次。
+    let grammarEnabled = configuration.rime?.grammarModelEnabled ?? true
+    if !grammarEnabled {
+      try? FileManager.default.removeItem(at: FileManager.sandboxSharedSupportDirectory.appendingPathComponent(HamsterConstants.grammarModelSchemaPatchFileName))
+    }
+
     // 判断是否需要覆盖键盘词库文件，如果为否，则先copy键盘词库文件至应用目录
     if let overrideDictFiles = configuration.rime?.overrideDictFiles, overrideDictFiles == false {
       let regex = configuration.rime?.regexOnOverrideDictFiles ?? []
@@ -365,18 +374,25 @@ public extension RimeContext {
       path: FileManager.sandboxUserDataDirectory.appendingPathComponent("/build/hamster.plist")
     )
 
-    // 将 Sandbox 目录下方案复制到AppGroup下
-    try FileManager.syncSandboxSharedSupportDirectoryToAppGroup(override: true)
+    // 将 Sandbox 目录下方案复制到AppGroup下。
+    // SharedSupport 同步保留组里已有的语法模型，模型本身单独按 sha256 门控：
+    // 只在组里缺失或变了才拷，键盘直接读组里的路径，不进键盘沙盒。
+    try FileManager.syncSandboxSharedSupportDirectoryToAppGroupPreservingGrammar()
+    try FileManager.syncGrammarModelToAppGroupIfNeeded(enabled: grammarEnabled)
     try FileManager.syncSandboxUserDataDirectoryToAppGroup(override: true)
   }
 
 
   /// RIME 重置
   /// 注意：仅可用于主 App 调用
-  func restRime() throws {
+  func restRime(grammarModelEnabled: Bool = true) throws {
     // 重置输入方案目录
     do {
       try FileManager.initSandboxSharedSupportDirectory(override: true)
+      // 与 deployment() 同理：关掉语法模型时拿掉补丁文件再部署。
+      if !grammarModelEnabled {
+        try? FileManager.default.removeItem(at: FileManager.sandboxSharedSupportDirectory.appendingPathComponent(HamsterConstants.grammarModelSchemaPatchFileName))
+      }
       try FileManager.initSandboxUserDataDirectory(override: true, unzip: true)
     } catch {
       Logger.statistics.error("rime init file directory error: \(error.localizedDescription)")
@@ -420,7 +436,9 @@ public extension RimeContext {
     }
 
     // 部署后将方案copy至AppGroup下供keyboard使用
-    try FileManager.syncSandboxSharedSupportDirectoryToAppGroup(override: true)
+    // SharedSupport 同步保留组里已有的语法模型，模型本身单独按 sha256 门控。
+    try FileManager.syncSandboxSharedSupportDirectoryToAppGroupPreservingGrammar()
+    try FileManager.syncGrammarModelToAppGroupIfNeeded(enabled: grammarModelEnabled)
     try FileManager.syncSandboxUserDataDirectoryToAppGroup(override: true)
   }
 

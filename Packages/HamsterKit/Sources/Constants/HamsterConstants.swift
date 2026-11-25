@@ -32,6 +32,14 @@ public enum HamsterConstants {
   /// 仓内置方案 zip 包
   public static let userDataZipFile = "rime-ice.zip"
 
+  /// 语法模型（万象）文件：octagram 插件运行时从 SharedSupport 里只读加载。
+  /// 373 MB 的二进制文件，主 App 只在缺失或 sha256 变了才拷进 App Group，
+  /// 键盘直接读组里的路径，绝不复制进键盘沙盒。
+  public static let grammarModelFileName = "wanxiang-lts-zh-hans.gram"
+
+  /// 语法模型补丁文件：rime_ice 的 .custom.yaml，引用上面的模型。
+  public static let grammarModelSchemaPatchFileName = "rime_ice.custom.yaml"
+
   /// APP URL
   /// 注意: 此值需要与info.plist中的参数保持一致
   public static let appURL = "hamster://dev.fuxiao.app.hamster"

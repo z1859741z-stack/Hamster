@@ -20,6 +20,15 @@ PRELUDE_REPO="rime/rime-prelude"
 PRELUDE_REF="082425ea0684bca36474415d4a0e8db9b016487e"
 PRELUDE_SHA256="66239ba4745d54471e5ce5540b45e86ec663ff5dba004cb23c95531a3bdec00f"
 
+# Grammar model (exp/octagram only): Wanxiang LTS .gram, a binary runtime data
+# file loaded read-only from shared data by the octagram plugin. The deployer
+# never compiles it. Pinned by URL + SHA-256 + byte size; verify the magic
+# header is "Rime::Grammar/1.0" after download. Local runs need ~1 GB free in
+# TMPDIR (the script builds in a temp dir): TMPDIR=~/workspace/.tmp-schema.
+WANXIANG_GRAM_URL="https://github.com/amzxyz/rime-wanxiang-data/releases/download/LTS/wanxiang-lts-zh-hans.gram"
+WANXIANG_GRAM_SHA256="e9ddd501b7d536bc5ea1346f8f900ae49a719a05be349e0a17cb27e717143ca5"
+WANXIANG_GRAM_SIZE="390786092"
+
 usage() {
   cat <<'USAGE'
 Usage: build-schema-fixed.sh [options]
@@ -75,6 +84,16 @@ download() {
 download ice "$ICE_REPO" "$ICE_REF" "$ICE_SHA256"
 download prelude "$PRELUDE_REPO" "$PRELUDE_REF" "$PRELUDE_SHA256"
 
+# Download a single raw file with SHA-256 and size pinning (not a codeload tarball).
+downloadFile() {
+  local name=$1 url=$2 expected=$3 expectedSize=$4 dest=$5
+  curl --fail --location --silent --show-error --retry 3 --connect-timeout 30 "$url" -o "$dest"
+  local actual; actual=$(sha256 "$dest")
+  [ "$actual" = "$expected" ] || die "$name SHA-256 mismatch: $actual"
+  local size; size=$(stat -f%z "$dest" 2>/dev/null || stat -c%s "$dest")
+  [ "$size" = "$expectedSize" ] || die "$name size mismatch: $size (expected $expectedSize)"
+}
+
 # The application expects a flat Rime shared-data directory. Copy the actual
 # source inputs, not the repository's docs or CI metadata.
 cp -a "$WORK/src/ice"/. "$WORK/shared/"
@@ -114,6 +133,14 @@ for d in "$WORK/shared" "$WORK/src/ice"; do
   rm -rf "$d"/others "$d"/lua/cold_word_drop
 done
 
+# Grammar model (exp/octagram): download the pinned Wanxiang LTS .gram into
+# shared data, and copy the rime_ice.custom.yaml patch next to the schema.
+# Both go into SharedSupport.zip only; rime-ice.zip stays the plain ice tree.
+# The .gram is a binary runtime file, loaded read-only from shared data by the
+# octagram plugin; the deployer never compiles it.
+downloadFile "wanxiang-lts-zh-hans.gram" "$WANXIANG_GRAM_URL" "$WANXIANG_GRAM_SHA256" "$WANXIANG_GRAM_SIZE" "$WORK/shared/wanxiang-lts-zh-hans.gram"
+cp -a "$ROOT/Resources/SharedSupport/rime_ice.custom.yaml" "$WORK/shared/rime_ice.custom.yaml"
+
 # Optional binary deployment. This is deliberately an explicit input because
 # vtable/module registration and generated table formats must match librime.
 MODE="source-only"
@@ -134,12 +161,18 @@ rime-ice-source-sha256=${ICE_SHA256}
 rime-prelude-repository=https://github.com/${PRELUDE_REPO}
 rime-prelude-commit=${PRELUDE_REF}
 rime-prelude-source-sha256=${PRELUDE_SHA256}
+wanxiang-grammar-model=${WANXIANG_GRAM_URL}
+wanxiang-grammar-model-sha256=${WANXIANG_GRAM_SHA256}
+wanxiang-grammar-model-size=${WANXIANG_GRAM_SIZE}
 META
 
 mkdir -p "$OUT"
 rm -f "$OUT/SharedSupport.zip" "$OUT/rime-ice.zip"
 # SharedSupport.zip is what the app expands into its sandbox shared directory.
-(cd "$WORK/shared" && zip -qr -X "$OUT/SharedSupport.zip" .)
+# The .gram is a 373 MB binary trie: store it uncompressed (-0) so the build
+# does not burn minutes deflating data that barely shrinks.
+(cd "$WORK/shared" && zip -qr -X "$OUT/SharedSupport.zip" . -x "wanxiang-lts-zh-hans.gram")
+(cd "$WORK/shared" && zip -q -0 -X "$OUT/SharedSupport.zip" "wanxiang-lts-zh-hans.gram")
 # Keep the complete fixed rime-ice source/config payload as the user-data zip.
 (cd "$WORK/src/ice" && zip -qr -X "$OUT/rime-ice.zip" .)
 
@@ -152,9 +185,16 @@ for path in (shared, ice):
         if bad: raise SystemExit(f'corrupt ZIP member: {bad}')
 with zipfile.ZipFile(shared) as z:
     names = set(z.namelist())
-    required = {'default.yaml', 'hamster.yaml', 'rime_ice.schema.yaml', 'rime_ice.dict.yaml'}
+    required = {'default.yaml', 'hamster.yaml', 'rime_ice.schema.yaml', 'rime_ice.dict.yaml',
+                'rime_ice.custom.yaml', 'wanxiang-lts-zh-hans.gram'}
     missing = sorted(required - names)
     if missing: raise SystemExit('SharedSupport missing: ' + ', '.join(missing))
+    with z.open('wanxiang-lts-zh-hans.gram') as f:
+        # Magic is "Rime::Grammar/1.0" (17 bytes); read 32 to cover it.
+        if not f.read(32).startswith(b'Rime::Grammar/1.0'):
+            raise SystemExit('wanxiang .gram magic mismatch (expected Rime::Grammar/1.0)')
+    if z.getinfo('wanxiang-lts-zh-hans.gram').file_size != 390786092:
+        raise SystemExit('wanxiang .gram size mismatch')
     if not any(n.startswith('Licenses/') for n in names): raise SystemExit('license payload missing')
     has_bin = any(n.endswith(('.bin', '.prism.bin', '.table.bin')) for n in names)
     if mode == 'source-only' and has_bin: raise SystemExit('source-only archive unexpectedly contains generated binaries')
