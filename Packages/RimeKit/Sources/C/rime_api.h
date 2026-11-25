@@ -590,7 +590,7 @@ RIME_API RIME_FLAVORED(RimeApi) * RIME_FLAVORED(rime_get_api)(void);
 /* Legacy names below dispatch through the versioned API table. */
 #include <stdlib.h>
 #include <string.h>
-#define RIME_WRAP(ret,name,args,call) static inline ret name args { return rime_get_api()->call; }
+#define RIME_WRAP(ret,name,args,call) static inline ret name args { return call; }
 RIME_WRAP(void,RimeSetup,(RimeTraits* t),(rime_get_api()->setup(t)))
 RIME_WRAP(void,RimeSetNotificationHandler,(RimeNotificationHandler h, void* c),(rime_get_api()->set_notification_handler(h,c)))
 RIME_WRAP(void,RimeInitialize,(RimeTraits* t),(rime_get_api()->initialize(t)))
