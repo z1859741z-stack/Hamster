@@ -221,11 +221,6 @@ public extension RimeViewModel {
     }
     closeRimeLogger(fileHandle)
   }
-
-  /// Offline builds do not access cloud sync directories.
-  func rimeSync() async {
-    await ProgressHUD.failed("离线版本不支持 RIME 同步", interaction: false, delay: 3)
-  }
   /// Rime重置
   func rimeRest() async {
     await ProgressHUD.animate("RIME重置中, 请稍候……", interaction: false)
@@ -274,14 +269,4 @@ public extension RimeViewModel {
       await ProgressHUD.failed("重置失败", interaction: false, delay: 3)
     }
   }
-}
-
-public extension RimeViewModel {
-  static let rimeSyncConfigSample = """
-  # id可以自定义，但不能其他终端定义的ID重复
-  installation_id: "hamster"
-  # 仓的iOS中iCloud前缀路径固定为：/private/var/mobile/Library/Mobile Documents/iCloud~dev~fuxiao~app~hamsterapp/Documents
-  # iOS中的路径与MacOS及Windows的iCloud路径是不同的
-  sync_dir: "/private/var/mobile/Library/Mobile Documents/iCloud~dev~fuxiao~app~hamsterapp/Documents/sync"
-  """
 }

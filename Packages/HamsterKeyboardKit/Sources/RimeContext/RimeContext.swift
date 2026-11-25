@@ -244,20 +244,7 @@ public extension RimeContext {
     // 已装过的设备不刷新就一直用旧的 hamster.yaml，新版配置（划动符号、中/英键等）
     // 永远下发不下去。重置（restRime）本来就是这么做的，这里只刷新 SharedSupport，
     // 不动用户数据目录，学习数据和自定义方案不受影响。
-    // 放 iCloud 复制之前，iCloud 的文件仍能覆盖上去。
     try FileManager.initSandboxSharedSupportDirectory(override: true)
-
-    // 如果开启 iCloud，则先将 iCloud 下文件增量复制到 Sandbox
-    if let enableAppleCloud = configuration.general?.enableAppleCloud, enableAppleCloud == true {
-      let regex = configuration.general?.regexOnCopyFile ?? []
-      do {
-        try FileManager.copyAppleCloudSharedSupportDirectoryToSandbox(regex)
-        try FileManager.copyAppleCloudUserDataDirectoryToSandbox(regex)
-      } catch {
-        Logger.statistics.error("RIME deploy error \(error.localizedDescription)")
-        throw error
-      }
-    }
 
     // 判断是否需要覆盖键盘词库文件，如果为否，则先copy键盘词库文件至应用目录
     if let overrideDictFiles = configuration.rime?.overrideDictFiles, overrideDictFiles == false {
@@ -367,9 +354,6 @@ public extension RimeContext {
 
     configuration = try HamsterConfigurationRepositories.shared.loadConfiguration()
 
-    // 键盘重新同步文件标志
-    UserDefaults.hamster.overrideRimeDirectory = true
-
     // 保存配置至 build/hamster.yaml
     // try? HamsterConfigurationRepositories.shared.saveToYAML(config: configuration, path: FileManager.hamsterConfigFileOnBuild)
 //    try? HamsterConfigurationRepositories.shared.saveToJSON(
@@ -386,52 +370,6 @@ public extension RimeContext {
     try FileManager.syncSandboxUserDataDirectoryToAppGroup(override: true)
   }
 
-  /// RIME 同步
-  /// 注意：仅可用于主 App 调用
-  func syncRime(configuration: HamsterConfiguration) throws {
-    // 检测文件目录是否存在不存在，新建
-    try FileManager.createDirectory(override: false, dst: FileManager.sandboxSharedSupportDirectory)
-    try FileManager.createDirectory(override: false, dst: FileManager.sandboxUserDataDirectory)
-
-    // 判断是否需要覆盖键盘词库文件，如果为否，则先copy键盘词库文件至应用目录
-    if let overrideDictFiles = configuration.rime?.overrideDictFiles, overrideDictFiles == false {
-      let regex = configuration.rime?.regexOnOverrideDictFiles ?? []
-      do {
-        try FileManager.copyAppGroupUserDict(regex)
-      } catch {
-        Logger.statistics.error("RIME deploy error \(error.localizedDescription)")
-        throw error
-      }
-    }
-
-    if !isRunning {
-      Rime.shared.start(Rime.createTraits(
-        sharedSupportDir: FileManager.sandboxSharedSupportDirectory.path,
-        userDataDir: FileManager.sandboxUserDataDirectory.path
-      ), maintenance: true, fullCheck: true)
-    }
-    let handled = Rime.shared.API().syncUserData()
-    Logger.statistics.info("RIME sync userData handled: \(handled)")
-    Rime.shared.shutdown()
-
-    // 键盘重新同步文件标志
-    UserDefaults.hamster.overrideRimeDirectory = true
-
-    // 保存配置至 build/hamster.yaml
-    // try? HamsterConfigurationRepositories.shared.saveToYAML(config: configuration, path: FileManager.hamsterConfigFileOnBuild)
-//    try? HamsterConfigurationRepositories.shared.saveToJSON(
-//      config: configuration,
-//      path: FileManager.sandboxUserDataDirectory.appendingPathComponent("/build/hamster.json")
-//    )
-    try? HamsterConfigurationRepositories.shared.saveToPropertyList(
-      config: configuration,
-      path: FileManager.sandboxUserDataDirectory.appendingPathComponent("/build/hamster.plist")
-    )
-
-    // 将 Sandbox 目录下方案复制到AppGroup下
-    try FileManager.syncSandboxSharedSupportDirectoryToAppGroup(override: true)
-    try FileManager.syncSandboxUserDataDirectoryToAppGroup(override: true)
-  }
 
   /// RIME 重置
   /// 注意：仅可用于主 App 调用
@@ -480,9 +418,6 @@ public extension RimeContext {
       resetCurrentSchema()
       resetLatestSchema()
     }
-
-    // 键盘重新同步文件标志
-    UserDefaults.hamster.overrideRimeDirectory = true
 
     // 部署后将方案copy至AppGroup下供keyboard使用
     try FileManager.syncSandboxSharedSupportDirectoryToAppGroup(override: true)

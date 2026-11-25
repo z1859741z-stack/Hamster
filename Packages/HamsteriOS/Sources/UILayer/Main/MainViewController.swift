@@ -108,8 +108,6 @@ extension MainViewController {
           switch type {
           case .rimeDeploy:
             await rimeViewController.rimeViewModel.rimeDeploy()
-          case .rimeSync:
-            await rimeViewController.rimeViewModel.rimeSync()
           default:
             break
           }

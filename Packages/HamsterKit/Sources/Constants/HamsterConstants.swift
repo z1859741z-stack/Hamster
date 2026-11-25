@@ -12,9 +12,6 @@ public enum HamsterConstants {
   /// AppGroup ID
   public static let appGroupName = "group.dev.fuxiao.app.Hamster"
 
-  /// iCloud ID
-  public static let iCloudID = "iCloud.dev.fuxiao.app.hamsterapp"
-
   /// keyboard Bundle ID
   public static let keyboardBundleID = "dev.fuxiao.app.Hamster.HamsterKeyboard"
 

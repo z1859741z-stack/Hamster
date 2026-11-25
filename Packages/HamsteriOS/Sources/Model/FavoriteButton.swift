@@ -9,7 +9,6 @@ import Foundation
 
 public enum FavoriteButton: String, Hashable, Equatable {
   case rimeDeploy
-  case rimeSync
   // case rimeRest
   case appBackup
 }

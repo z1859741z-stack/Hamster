@@ -69,15 +69,6 @@ public class SettingsViewModel: ObservableObject {
             },
             favoriteButton: .rimeDeploy
           )
-        case .rimeSync: return SettingItemModel(
-            text: "RIME同步",
-            type: .button,
-            buttonAction: { [weak self] in
-              guard let self = self else { return }
-              await rimeViewModel.rimeSync()
-            },
-            favoriteButton: .rimeSync
-          )
         case .appBackup: return SettingItemModel(
             text: "应用备份",
             type: .button,
@@ -85,7 +76,7 @@ public class SettingsViewModel: ObservableObject {
               guard let self = self else { return }
               await backupViewModel.backup()
             },
-            favoriteButton: .rimeSync
+            favoriteButton: .appBackup
           )
         }
       }

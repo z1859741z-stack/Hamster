@@ -9,7 +9,6 @@ import Foundation
 
 public enum ShortcutItemType: String {
   case rimeDeploy = "RIME重新部署"
-  case rimeSync = "RIME同步"
   case rimeReset = "RIME重置"
   case none = ""
 }

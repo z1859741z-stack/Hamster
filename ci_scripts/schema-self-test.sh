@@ -7,7 +7,8 @@ BUILDER="$ROOT/ci_scripts/build-schema-fixed.sh"
 bash -n "$BUILDER"
 grep -Fq 'ICE_REF="927e1cf1d3eeb9bf4be85e3f684dba4dd485b6f6"' "$BUILDER"
 grep -Fq 'PRELUDE_REF="082425ea0684bca36474415d4a0e8db9b016487e"' "$BUILDER"
-grep -Fq 'ESSAY_REF="d95eeae056df429ecf993038c325a216f0b28c5b"' "$BUILDER"
+# rime-essay was dropped in the 2026-11-25 slim-down (no schema imports
+# essay.txt); its pin is intentionally gone, do not re-add the check.
 grep -Fq 'codeload.github.com' "$BUILDER"
 grep -Fq 'source-only' "$BUILDER"
 grep -Fq 'schema-source-mode=' "$BUILDER"

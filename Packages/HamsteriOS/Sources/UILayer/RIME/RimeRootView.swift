@@ -61,11 +61,6 @@ public class RimeRootView: NibLessView {
       tableView.reloadData()
     }
   }
-
-  @objc func copySyncConfig() {
-    UIPasteboard.general.string = RimeViewModel.rimeSyncConfigSample
-    ProgressHUD.success("复制成功", interaction: false, delay: 1.5)
-  }
 }
 
 extension RimeRootView: UITableViewDataSource {
@@ -113,10 +108,6 @@ extension RimeRootView: UITableViewDataSource {
   public func tableView(_ tableView: UITableView, viewForFooterInSection section: Int) -> UIView? {
     guard let footer = rimeViewModel.settings[section].footer else { return nil }
     let view = TableFooterView(footer: footer)
-    if section == 4 {
-      let gesture = UITapGestureRecognizer(target: self, action: #selector(copySyncConfig))
-      view.addGestureRecognizer(gesture)
-    }
     return view
   }
 }

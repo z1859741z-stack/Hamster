@@ -211,20 +211,6 @@ public extension UserDefaults {
     }
   }
 
-  /// 是否覆盖 RIME 的用户数据目录
-  var overrideRimeDirectory: Bool {
-    get {
-      if object(forKey: Self.overrideRimeDirectoryOfKey) != nil {
-        return bool(forKey: Self.overrideRimeDirectoryOfKey)
-      }
-      return true
-    }
-    set {
-      setValue(newValue, forKey: Self.overrideRimeDirectoryOfKey)
-      Logger.statistics.debug("save overrideRimeDirectory: \(newValue)")
-    }
-  }
-
   /// RIME: 输入方案列表
   var schemas: [RimeSchema] {
     get {
@@ -360,7 +346,6 @@ extension UserDefaults {
   // MARK: - 2.0 版本
 
   public static let isFirstRunningOfKey = "com.ihsiao.apps.Hamster.UserDefaults.isFirstRunning"
-  private static let overrideRimeDirectoryOfKey = "com.ihsiao.apps.Hamster.UserDefaults.overrideRimeDirectory"
   private static let schemasForKey = "com.ihsiao.apps.Hamster.UserDefault.keys.schemas"
   private static let selectSchemasForKey = "com.ihsiao.apps.Hamster.UserDefault.keys.selectSchemas"
   private static let currentSchemaForKey = "com.ihsiao.apps.Hamster.UserDefault.keys.currentSchema"

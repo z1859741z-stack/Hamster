@@ -40,7 +40,7 @@ let package = Package(
         .product(name: "RimeKit", package: "RimeKit"),
       ],
       path: "Sources",
-      exclude: ["CloudKit", "UILayer/InputSchema/CloudInputSchema", "UILayer/UploadInputSchema", "ViewModel/UploadInputSchema", "UILayer/iCloud", "ViewModel/iCloud"],
+      exclude: ["UILayer/InputSchema/CloudInputSchema", "UILayer/UploadInputSchema", "ViewModel/UploadInputSchema"],
       resources: [.process("Resources")]
     ),
   ])
