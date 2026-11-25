@@ -39,7 +39,7 @@ workflows:
             exit 1
           fi
           short_sha="$(git rev-parse --short=8 HEAD)"
-          build_number="$CM_BUILD_NUMBER"
+          build_number="${PROJECT_BUILD_NUMBER:?PROJECT_BUILD_NUMBER not set}"
           ipa_name="Hamster-v${version}-b${build_number}-${short_sha}-unsigned.ipa"
           {
             echo "MARKETING_VERSION=$version"
@@ -59,7 +59,7 @@ workflows:
             -archivePath /tmp/Hamster.xcarchive \
             -derivedDataPath .ci/DerivedData \
             -clonedSourcePackagesDirPath .ci/SourcePackages \
-            CURRENT_PROJECT_VERSION="$CM_BUILD_NUMBER" HAMSTER_GIT_COMMIT="$(git rev-parse --short=8 HEAD)" \
+            CURRENT_PROJECT_VERSION="$BUILD_NUMBER" HAMSTER_GIT_COMMIT="$(git rev-parse --short=8 HEAD)" \
             CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO
       - name: Package unsigned IPA
         script: |
