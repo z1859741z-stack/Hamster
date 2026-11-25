@@ -227,6 +227,11 @@ class KeyboardRootView: NibLessView {
     contentMode = .redraw
   }
 
+  /// 液态玻璃（iOS 26 样式）：系统键盘两侧比我们多留约 3.5pt。
+  private var glassSideInset: CGFloat {
+    keyboardContext.isLiquidGlassEnabled ? 3.5 : 0
+  }
+
   // MARK: - Layout
 
   /// 构建视图层次
@@ -281,8 +286,8 @@ class KeyboardRootView: NibLessView {
     return [
       primaryKeyboardView.topAnchor.constraint(equalTo: toolbarView.bottomAnchor),
       primaryKeyboardView.bottomAnchor.constraint(equalTo: bottomAnchor),
-      primaryKeyboardView.leadingAnchor.constraint(equalTo: leadingAnchor),
-      primaryKeyboardView.trailingAnchor.constraint(equalTo: trailingAnchor)
+      primaryKeyboardView.leadingAnchor.constraint(equalTo: leadingAnchor, constant: glassSideInset),
+      primaryKeyboardView.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -glassSideInset)
     ]
   }
 
@@ -291,8 +296,8 @@ class KeyboardRootView: NibLessView {
     return [
       primaryKeyboardView.topAnchor.constraint(equalTo: topAnchor),
       primaryKeyboardView.bottomAnchor.constraint(equalTo: bottomAnchor),
-      primaryKeyboardView.leadingAnchor.constraint(equalTo: leadingAnchor),
-      primaryKeyboardView.trailingAnchor.constraint(equalTo: trailingAnchor)
+      primaryKeyboardView.leadingAnchor.constraint(equalTo: leadingAnchor, constant: glassSideInset),
+      primaryKeyboardView.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -glassSideInset)
     ]
   }
 

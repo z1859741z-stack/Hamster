@@ -403,7 +403,15 @@ public class KeyboardContext: ObservableObject {
 
   /// 工具栏高度
   var heightOfToolbar: CGFloat {
-    CGFloat(hamsterConfiguration?.toolbar?.heightOfToolbar ?? 55)
+    let height = CGFloat(hamsterConfiguration?.toolbar?.heightOfToolbar ?? 55)
+    // 液态玻璃（iOS 26 样式）：按真机截图，系统候选区比我们高约 7pt。
+    return isLiquidGlassEnabled ? height + 7 : height
+  }
+
+  /// 液态玻璃（iOS 26 样式）是否开启：开关开且系统 iOS 26+（配置每次弹出前重读）。
+  var isLiquidGlassEnabled: Bool {
+    guard #available(iOS 26.0, *) else { return false }
+    return hamsterConfiguration?.keyboard?.liquidGlassStyle ?? false
   }
 
   /// 工具栏编码区高度
@@ -551,7 +559,9 @@ public class KeyboardContext: ObservableObject {
   }
 
   var showUppercasedCharacterOnChineseKeyboard: Bool {
-    hamsterConfiguration?.keyboard?.showUppercasedCharacterOnChineseKeyboard ?? true
+    // 液态玻璃（iOS 26 样式）：和系统一样显示小写字母。
+    if isLiquidGlassEnabled { return false }
+    return hamsterConfiguration?.keyboard?.showUppercasedCharacterOnChineseKeyboard ?? true
   }
 
   var enableNineGridOfNumericKeyboard: Bool {

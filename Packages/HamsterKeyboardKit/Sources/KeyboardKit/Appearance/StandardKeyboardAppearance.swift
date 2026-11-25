@@ -141,7 +141,9 @@ open class StandardKeyboardAppearance: KeyboardAppearance {
   ///
   /// 用于特定操作的按钮图像（如果有）。
   open func buttonImage(for action: KeyboardAction) -> UIImage? {
-    action.standardButtonImage(for: keyboardContext)
+    // 液态玻璃（iOS 26 样式）：换行键和系统一样显示 ↵ 图标。
+    if isLiquidGlassEnabled, case .primary = action { return UIImage(systemName: "return.left") }
+    return action.standardButtonImage(for: keyboardContext)
   }
 
   /// The content scale factor to use for a certain action.
@@ -403,8 +405,7 @@ open class StandardKeyboardAppearance: KeyboardAppearance {
 
   /// 液态玻璃（iOS 26 样式）是否开启：开关开且系统 iOS 26+（配置每次弹出前重读）。
   private var isLiquidGlassEnabled: Bool {
-    guard #available(iOS 26.0, *) else { return false }
-    return keyboardContext.hamsterConfiguration?.keyboard?.liquidGlassStyle ?? false
+    keyboardContext.isLiquidGlassEnabled
   }
 
   open func buttonBackgroundColor(for action: KeyboardAction, isPressed: Bool, hamsterColor: HamsterKeyboardColor) -> UIColor {

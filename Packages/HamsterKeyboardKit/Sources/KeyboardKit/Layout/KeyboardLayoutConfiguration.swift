@@ -75,7 +75,14 @@ public extension KeyboardLayoutConfiguration
     for context: KeyboardContext
   ) -> KeyboardLayoutConfiguration
   {
-    standard(
+    // 液态玻璃（iOS 26 样式）：大屏 iPhone 竖屏（16 Pro Max 是 440×956，原判断只认 428×926）
+    // 用 Pro Max 行高 56 / 按键高 45，和系统键盘真机截图一致。
+    if context.isLiquidGlassEnabled, !context.isKeyboardFloating, context.deviceType == .phone,
+       context.interfaceOrientation.isPortrait, min(context.screenSize.width, context.screenSize.height) >= 428
+    {
+      return .standardPhoneProMax
+    }
+    return standard(
       forDevice: context.isKeyboardFloating ? .phone : context.deviceType,
       screenSize: context.screenSize,
       orientation: context.interfaceOrientation)
