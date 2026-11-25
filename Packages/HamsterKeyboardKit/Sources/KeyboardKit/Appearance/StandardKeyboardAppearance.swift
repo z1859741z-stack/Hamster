@@ -284,7 +284,7 @@ open class StandardKeyboardAppearance: KeyboardAppearance {
       font: buttonFont(for: action),
       swipeFont: swipeFont,
       // cornerRadius: buttonCornerRadius(for: action),
-      cornerRadius: 5,
+      cornerRadius: isLiquidGlassEnabled ? Self.glassCornerRadius : 5,
       border: buttonBorderStyle(for: action),
       shadow: buttonShadowStyle(for: action)
     )
@@ -383,23 +383,25 @@ open class StandardKeyboardAppearance: KeyboardAppearance {
   ///
   /// 根据给定 `isPressed` 状态， 用于特定操作的背景颜色。
   open func buttonBackgroundColor(for action: KeyboardAction, isPressed: Bool) -> UIColor {
-    let color = action.buttonBackgroundColor(for: keyboardContext, isPressed: isPressed)
-    // 液态玻璃开 + 浅色：背景透明后系统会给键盘内容整体压暗一层，
-    // 功能键（shift、删除、123、换行等）的 #ABB1BA 会被压到约 148，比系统键盘的约 171 深一截。
-    // 这里只把这一种颜色换成更亮的 #CBCFD9，压暗后约等于系统键盘的功能键颜色。
-    // 深色、玻璃关、自定义配色方案都不走这里，和 b24 一样。
-    if isLiquidGlassEnabled, !keyboardContext.hasDarkColorScheme,
-       color === HamsterUIColor.shared.standardDarkButtonBackground
-    {
-      return Self.glassLightFunctionKeyBackground
+    // 液态玻璃（iOS 26 样式）：照 iOS 26 系统键盘真机截图取色（IMG_1218 深色 / IMG_1219 浅色）：
+    // 所有按键（字母键和 shift/删除/123/换行/空格）同一个颜色，浅色纯白、深色 #444444；
+    // 按下深色 #686868（真机取色），浅色 #C8CBD2（截图里被气泡挡住，估值）。
+    // 透明占位类按键（none、字符边距、emoji）不改。玻璃关、自定义配色方案不走这里，和 b24 一样。
+    if isLiquidGlassEnabled, action.buttonBackgroundColorForAllStates == nil {
+      let dark = keyboardContext.hasDarkColorScheme
+      if isPressed { return dark ? Self.glassDarkPressed : Self.glassLightPressed }
+      return dark ? Self.glassDarkKey : .white
     }
-    return color
+    return action.buttonBackgroundColor(for: keyboardContext, isPressed: isPressed)
   }
 
-  /// 液态玻璃开 + 浅色时功能键底色（真机取色反推，见上）。
-  private static let glassLightFunctionKeyBackground = UIColor(red: 203 / 255, green: 207 / 255, blue: 217 / 255, alpha: 1)
+  private static let glassDarkKey = UIColor(red: 0x44 / 255, green: 0x44 / 255, blue: 0x44 / 255, alpha: 1)
+  private static let glassDarkPressed = UIColor(red: 0x68 / 255, green: 0x68 / 255, blue: 0x68 / 255, alpha: 1)
+  private static let glassLightPressed = UIColor(red: 0xC8 / 255, green: 0xCB / 255, blue: 0xD2 / 255, alpha: 1)
+  /// iOS 26 系统键盘按键圆角（截图量约 8.5pt）。
+  private static let glassCornerRadius: CGFloat = 8.5
 
-  /// 液态玻璃是否开启：开关开且系统 iOS 26+（配置每次弹出前重读）。
+  /// 液态玻璃（iOS 26 样式）是否开启：开关开且系统 iOS 26+（配置每次弹出前重读）。
   private var isLiquidGlassEnabled: Bool {
     guard #available(iOS 26.0, *) else { return false }
     return keyboardContext.hamsterConfiguration?.keyboard?.liquidGlassStyle ?? false
@@ -430,7 +432,8 @@ open class StandardKeyboardAppearance: KeyboardAppearance {
   ///
   /// 用于特定操作的圆角半径。
   open func buttonCornerRadius(for action: KeyboardAction) -> CGFloat {
-    keyboardLayoutConfiguration.buttonCornerRadius
+    if isLiquidGlassEnabled { return Self.glassCornerRadius }
+    return keyboardLayoutConfiguration.buttonCornerRadius
   }
 
   open func buttonCornerRadius(for action: KeyboardAction, hamsterColor: HamsterKeyboardColor) -> CGFloat {
@@ -603,6 +606,8 @@ open class StandardKeyboardAppearance: KeyboardAppearance {
   ///
   /// 用于特定操作的按键阴影样式。
   open func buttonShadowStyle(for action: KeyboardAction) -> KeyboardButtonShadowStyle {
+    // iOS 26 系统键盘按键没有底部阴影。
+    if isLiquidGlassEnabled { return .noShadow }
     switch action {
     case .characterMargin: return .noShadow
     case .emoji, .emojiCategory: return .noShadow

@@ -123,9 +123,6 @@ open class KeyboardInputViewController: UIInputViewController, KeyboardControlle
       keyboardRootView.trailingAnchor.constraint(equalTo: view.trailingAnchor),
     ])
 
-    // 液态玻璃实验：开时背景全透明，让系统底色透上来；关时恢复 b24 的样子（view 背景默认 nil，不碰）。
-    // （之前自己加的玻璃视图已去掉：浅色下按键发灰、深色下字母键发白、和地球键那行出现分界线。）
-    view.backgroundColor = isLiquidGlassEnabled ? .clear : nil
   }
 
   deinit {
@@ -278,13 +275,6 @@ open class KeyboardInputViewController: UIInputViewController, KeyboardControlle
 
   /// 弹出耗时提示 label（调试开关开时才创建，3 秒后自动消失）。
   private var latencyToastLabel: UILabel?
-
-  /// 液态玻璃实验是否开启：开关开且系统 iOS 26+（viewWillAppear 里已同步重读配置）。
-  /// 开的意思是键盘背景全透明、让系统底色透上来；不再自己加玻璃视图。
-  private var isLiquidGlassEnabled: Bool {
-    guard #available(iOS 26.0, *) else { return false }
-    return keyboardContext.hamsterConfiguration?.keyboard?.liquidGlassStyle ?? false
-  }
 
   /**
    按给定配置生成触感与按键音设置。

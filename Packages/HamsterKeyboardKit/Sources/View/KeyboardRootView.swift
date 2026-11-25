@@ -221,22 +221,10 @@ class KeyboardRootView: NibLessView {
   }
 
   override func setupAppearance() {
-    // 液态玻璃实验：开时各层背景全透明，让系统底色透上来；关时恢复 b24 的背景，一模一样。
-    // gate 放在这里：深浅色切换时 setupAppearance 会重跑，开关状态每次都会重新应用。
-    backgroundColor = isLiquidGlassEnabled ? .clear : appearance.backgroundStyle.backgroundColor
-    if isLiquidGlassEnabled {
-      if keyboardContext.enableToolbar {
-        toolbarView.backgroundColor = .clear
-      }
-      primaryKeyboardView.backgroundColor = .clear
-    }
+    // 液态玻璃（iOS 26 样式）开关不改背景：背景和 b24 一样近乎透明，系统自己的键盘底色透上来。
+    // （b27 把各层背景设成 .clear 后，按键被系统整体压暗、还多出两条横向细线，已回退。）
+    backgroundColor = appearance.backgroundStyle.backgroundColor
     contentMode = .redraw
-  }
-
-  /// 液态玻璃实验是否开启：开关开且系统 iOS 26+（配置每次弹出前重读）。
-  private var isLiquidGlassEnabled: Bool {
-    guard #available(iOS 26.0, *) else { return false }
-    return keyboardContext.hamsterConfiguration?.keyboard?.liquidGlassStyle ?? false
   }
 
   // MARK: - Layout

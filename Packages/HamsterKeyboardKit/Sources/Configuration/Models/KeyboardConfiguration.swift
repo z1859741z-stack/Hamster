@@ -152,7 +152,7 @@ public struct KeyboardConfiguration: Codable, Hashable {
   // 显示弹出耗时（调试开关，默认关）：键盘每次弹出到可打字的时间，在键盘内短暂显示。
   public var showPopupLatency: Bool?
 
-  // 液态玻璃样式（实验性开关，默认关）：开时键盘背景全透明，让系统底色透上来，按键保持不透明。
+  // 液态玻璃样式（实验性开关，默认关）：开时按键改成 iOS 26 系统键盘样式（同色、圆角 8.5、无阴影）。
   // 低于 iOS 26 时主 App 里开关置灰，键盘侧直接忽略。
   public var liquidGlassStyle: Bool?
 
