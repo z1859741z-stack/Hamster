@@ -106,3 +106,90 @@ workflows:
     artifacts:
       - .ci/output/*.ipa
       - .ci/output/*.sha256
+
+  ios-simulator-shots:
+    name: Hamster simulator screenshots
+    instance_type: mac_mini_m2
+    max_build_duration: 90
+    environment:
+      xcode: 26.6
+    triggering:
+      events:
+        - push
+      branch_patterns:
+        - pattern: 'exp/simulator-screenshots'
+          include: true
+          source: true
+    scripts:
+      - name: Identify Xcode
+        script: |
+          set -euo pipefail
+          xcodebuild -version
+      - name: Prepare pinned librime XCFramework and licenses
+        script: |
+          set -euo pipefail
+          bash ci_scripts/prepare-rime-framework.sh
+      - name: Build fixed offline schema resources
+        script: |
+          set -euo pipefail
+          bash ci_scripts/build-schema-fixed.sh --third-party-notices Frameworks/CI-licenses/librime-xcframework/third-party-notices.zip
+          bash ci_scripts/schema-self-test.sh
+      - name: Determine build identity
+        script: |
+          set -euo pipefail
+          version="$(xcodebuild -project Hamster.xcodeproj -target Hamster -configuration Release -showBuildSettings | sed -n 's/^[[:space:]]*MARKETING_VERSION = //p' | head -n 1)"
+          short_sha="$(git rev-parse --short=8 HEAD)"
+          build_number="${PROJECT_BUILD_NUMBER:-1}"
+          {
+            echo "BUILD_NUMBER=$build_number"
+            echo "SHORT_SHA=$short_sha"
+          } >> "$CM_ENV"
+          mkdir -p .ci/output
+          echo "Version $version; build $build_number; commit $short_sha"
+      - name: Build simulator app
+        script: |
+          set -euo pipefail
+          rm -rf .ci/SimDerivedData
+          xcodebuild build \
+            -project Hamster.xcodeproj -scheme Hamster -configuration Release \
+            -destination 'generic/platform=iOS Simulator' \
+            -derivedDataPath .ci/SimDerivedData \
+            -clonedSourcePackagesDirPath .ci/SourcePackages \
+            CURRENT_PROJECT_VERSION="$BUILD_NUMBER" HAMSTER_GIT_COMMIT="$SHORT_SHA" \
+            CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO
+          SIM_APP=".ci/SimDerivedData/Build/Products/Release-iphonesimulator/Hamster.app"
+          [ -d "$SIM_APP" ] || { echo "Simulator .app missing: $SIM_APP"; exit 1; }
+          [ -d "$SIM_APP/PlugIns/HamsterKeyboard.appex" ] || { echo "Keyboard appex missing"; exit 1; }
+          echo "SIM_APP=$SIM_APP" >> "$CM_ENV"
+          ls -la "$SIM_APP/PlugIns/"
+      - name: Ad-hoc sign app and extension with App Group entitlements
+        script: |
+          set -euo pipefail
+          codesign --force --sign - --entitlements HamsterKeyboard/HamsterKeyboard.entitlements --timestamp=none "$SIM_APP/PlugIns/HamsterKeyboard.appex"
+          codesign --force --sign - --entitlements Hamster/Hamster.entitlements --timestamp=none "$SIM_APP"
+          codesign -d --entitlements - "$SIM_APP" 2>&1 | grep -A3 application-groups || true
+          codesign -d --entitlements - "$SIM_APP/PlugIns/HamsterKeyboard.appex" 2>&1 | grep -A3 application-groups || true
+      - name: Create simulator and run screenshot script
+        script: |
+          set -euo pipefail
+          defaults write com.apple.iphonesimulator ConnectHardwareKeyboard -bool false
+          RUNTIME_JSON="$(xcrun simctl list runtimes --json)"
+          RUNTIME="$(echo "$RUNTIME_JSON" | python3 -c "import json,sys; d=json.load(sys.stdin); ios=[r for r in d['runtimes'] if r['identifier'].startswith('com.apple.CoreSimulator.SimRuntime.iOS-') and r.get('isAvailable')]; ios.sort(key=lambda r: r['version']); print(ios[-1]['identifier'] if ios else '')")"
+          IOS_VER="$(echo "$RUNTIME_JSON" | python3 -c "import json,sys; d=json.load(sys.stdin); ios=[r for r in d['runtimes'] if r['identifier'].startswith('com.apple.CoreSimulator.SimRuntime.iOS-') and r.get('isAvailable')]; ios.sort(key=lambda r: r['version']); print(ios[-1]['version'] if ios else '')")"
+          [ -n "$RUNTIME" ] || { echo "No available iOS simulator runtime"; exit 1; }
+          echo "Runtime: $RUNTIME (iOS $IOS_VER)"
+          UDID="$(xcrun simctl create HamsterShots com.apple.CoreSimulator.SimDeviceType.iPhone-16-Pro-Max "$RUNTIME")"
+          echo "Simulator UDID: $UDID"
+          bash ci_scripts/simulator-screenshots.sh \
+            --udid "$UDID" \
+            --app "$SIM_APP" \
+            --output .ci/sim-shots \
+            --require-device-type 'com.apple.CoreSimulator.SimDeviceType.iPhone-16-Pro-Max' \
+            --require-ios "$IOS_VER" \
+            --main-wait 90 \
+            --extra-hook "$PWD/ci_scripts/simulator-hamster-hook.sh"
+    artifacts:
+      - .ci/sim-shots/*.png
+      - .ci/sim-shots/*.log
+      - .ci/sim-shots/*.txt
+      - .ci/sim-shots/*.json
