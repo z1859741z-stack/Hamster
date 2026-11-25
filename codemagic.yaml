@@ -1,0 +1,108 @@
+# Hamster 未签名 IPA 构建（Codemagic）。
+# 只做第①步：离线 Rime 底座 + 归档 + 导出未签名 IPA + sha256。
+# 不跑测试、不截模拟器图、不签名、不发布、不写任何 token。
+# GitHub Actions 的 .github/workflows/ci.yml 保留不动。
+workflows:
+  ios-unsigned-ipa:
+    name: Hamster unsigned IPA
+    instance_type: mac_mini_m2
+    max_build_duration: 90
+    environment:
+      xcode: 26.6
+    triggering:
+      events:
+        - push
+      branch_patterns:
+        - pattern: 'main'
+          include: true
+          source: true
+    scripts:
+      - name: Identify Xcode
+        script: |
+          set -euo pipefail
+          xcodebuild -version
+      - name: Prepare pinned librime XCFramework and licenses
+        script: |
+          set -euo pipefail
+          bash ci_scripts/prepare-rime-framework.sh
+      - name: Build fixed offline schema resources
+        script: |
+          set -euo pipefail
+          bash ci_scripts/build-schema-fixed.sh --third-party-notices Frameworks/CI-licenses/librime-xcframework/third-party-notices.zip
+          bash ci_scripts/schema-self-test.sh
+      - name: Determine build identity
+        script: |
+          set -euo pipefail
+          version="$(xcodebuild -project Hamster.xcodeproj -target Hamster -configuration Release -showBuildSettings | sed -n 's/^[[:space:]]*MARKETING_VERSION = //p' | head -n 1)"
+          if [[ ! "$version" =~ ^[0-9]+(\.[0-9]+){1,2}$ ]]; then
+            echo "Could not determine a valid Hamster MARKETING_VERSION: $version"
+            exit 1
+          fi
+          short_sha="$(git rev-parse --short=8 HEAD)"
+          build_number="$CM_BUILD_NUMBER"
+          ipa_name="Hamster-v${version}-b${build_number}-${short_sha}-unsigned.ipa"
+          {
+            echo "MARKETING_VERSION=$version"
+            echo "BUILD_NUMBER=$build_number"
+            echo "SHORT_SHA=$short_sha"
+            echo "IPA_NAME=$ipa_name"
+          } >> "$CM_ENV"
+          mkdir -p .ci/output
+          echo "Version $version; build $build_number; commit $short_sha"
+      - name: Archive unsigned iPhone app
+        script: |
+          set -euo pipefail
+          rm -rf /tmp/Hamster.xcarchive
+          xcodebuild archive \
+            -project Hamster.xcodeproj -scheme Hamster -configuration Release \
+            -destination 'generic/platform=iOS' \
+            -archivePath /tmp/Hamster.xcarchive \
+            -derivedDataPath .ci/DerivedData \
+            -clonedSourcePackagesDirPath .ci/SourcePackages \
+            CURRENT_PROJECT_VERSION="$CM_BUILD_NUMBER" HAMSTER_GIT_COMMIT="$(git rev-parse --short=8 HEAD)" \
+            CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO
+      - name: Package unsigned IPA
+        script: |
+          set -euo pipefail
+          bash ci_scripts/package-unsigned-ipa.sh \
+            --app /tmp/Hamster.xcarchive/Products/Applications/Hamster.app \
+            --output ".ci/output/$IPA_NAME"
+      - name: Validate IPA contents and build identity
+        script: |
+          set -euo pipefail
+          python3 - ".ci/output/$IPA_NAME" "$MARKETING_VERSION" "$BUILD_NUMBER" "$SHORT_SHA" <<'PY'
+          import plistlib, sys, zipfile
+          path, version, build, short_sha = sys.argv[1:]
+          if not zipfile.is_zipfile(path):
+              sys.exit('IPA is not a valid ZIP archive')
+          with zipfile.ZipFile(path) as z:
+              names = z.namelist()
+              if len(names) != len(set(names)) or z.testzip() is not None:
+                  sys.exit('IPA has duplicate or corrupt ZIP entries')
+              if any(n.startswith('/') or '..' in n.split('/') for n in names):
+                  sys.exit('IPA contains an unsafe path')
+              root = 'Payload/Hamster.app/'
+              if any('/_CodeSignature/' in n or n.endswith('/embedded.mobileprovision') for n in names):
+                  sys.exit('IPA unexpectedly contains a code-signature directory or provisioning profile')
+              for directory, package_type in [(root, 'APPL'), (root + 'PlugIns/HamsterKeyboard.appex/', 'XPC!')]:
+                  try:
+                      info = plistlib.loads(z.read(directory + 'Info.plist'))
+                      executable = info['CFBundleExecutable']
+                      if '/' in executable or not executable or z.getinfo(directory + executable).file_size == 0:
+                          raise ValueError('missing executable')
+                  except (KeyError, ValueError, TypeError, plistlib.InvalidFileException) as e:
+                      sys.exit(f'Invalid app or keyboard extension at {directory}: {e}')
+                  if info.get('CFBundlePackageType') != package_type or str(info.get('CFBundleVersion')) != build or info.get('CFBundleShortVersionString') != version:
+                      sys.exit(f'Wrong package type or version/build for {directory}: {info}')
+                  if directory == root and info.get('HamsterGitCommit') != short_sha:
+                      sys.exit('Wrong or missing HamsterGitCommit in packaged app')
+                  print(f'Validated {directory} {version} ({build})')
+          PY
+      - name: Generate IPA sha256
+        script: |
+          set -euo pipefail
+          shasum -a 256 ".ci/output/$IPA_NAME" > ".ci/output/$IPA_NAME.sha256"
+          cat ".ci/output/$IPA_NAME.sha256"
+    artifacts:
+      - .ci/output/*.ipa
+      - .ci/output/*.sha256
