@@ -294,8 +294,6 @@
 						CreatedOnToolsVersion = 14.2;
 						LastSwiftMigration = 1420;
 					};
-						CreatedOnToolsVersion = 15.0.1;
-					};
 				};
 			};
 			buildConfigurationList = C03E8020296D4F4C0083E53A /* Build configuration list for PBXProject "Hamster" */;
@@ -714,3 +712,4 @@
 /* End XCSwiftPackageProductDependency section */
 	};
 	rootObject = C03E801D296D4F4C0083E53A /* Project object */;
+}
