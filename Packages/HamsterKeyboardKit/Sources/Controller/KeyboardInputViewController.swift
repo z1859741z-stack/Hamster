@@ -68,6 +68,7 @@ open class KeyboardInputViewController: UIInputViewController, KeyboardControlle
 
   override open func viewDidAppear(_ animated: Bool) {
     super.viewDidAppear(animated)
+    rebuildKeyboardIfReturnKeyTypeChanged()
 //    viewWillHandleDictationResult()
   }
 
@@ -104,6 +105,7 @@ open class KeyboardInputViewController: UIInputViewController, KeyboardControlle
    */
 
   open func viewWillSetupKeyboard() {
+    layoutReturnKeyType = textDocumentProxy.returnKeyType ?? .default
     let keyboardRootView = KeyboardRootView(
       keyboardLayoutProvider: keyboardLayoutProvider,
       appearance: keyboardAppearance,
@@ -127,6 +129,20 @@ open class KeyboardInputViewController: UIInputViewController, KeyboardControlle
 
   deinit {
     view.subviews.forEach { $0.removeFromSuperview() }
+  }
+
+  /// 键盘布局建好时输入框的 returnKeyType（回车键文字/颜色据此决定）。
+  private var layoutReturnKeyType: UIReturnKeyType = .default
+
+  /// 回车键要随输入框 returnKeyType 变化（发送/搜索/前往/完成…，普通换行为灰色「换行」）。
+  /// 有时键盘建好时宿主还没把 returnKeyType 交过来（模拟器首次弹出实测拿到的是 default），
+  /// 或者键盘没收起就换到了另一个输入框：发现和建好时不一样就重建一次键盘视图。没输入拼音时才重建，不打断正在输入的内容。
+  private func rebuildKeyboardIfReturnKeyTypeChanged() {
+    let current = textDocumentProxy.returnKeyType ?? .default
+    guard current != layoutReturnKeyType, rimeContext.userInputKey.isEmpty else { return }
+    guard view.subviews.contains(where: { $0 is KeyboardRootView }) else { return }
+    view.subviews.filter { $0 is KeyboardRootView }.forEach { $0.removeFromSuperview() }
+    viewWillSetupKeyboard()
   }
 
   /**
@@ -509,6 +525,9 @@ open class KeyboardInputViewController: UIInputViewController, KeyboardControlle
     if !self.textDocumentProxy.hasText {
       self.rimeContext.reset()
     }
+
+    // 换了输入框（returnKeyType 变了）时刷新回车键
+    rebuildKeyboardIfReturnKeyTypeChanged()
   }
 
   // MARK: - Implementations KeyboardController
