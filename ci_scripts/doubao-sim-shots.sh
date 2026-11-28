@@ -108,7 +108,9 @@ PLIST
 defaults write com.apple.iphonesimulator ConnectHardwareKeyboard -bool false || true
 xcrun simctl boot "$udid" || true
 xcrun simctl bootstatus "$udid" -b || true
-arch="$(xcrun simctl spawn "$udid" uname -m | tr -d '\r\n')"
+arch="$(xcrun simctl spawn "$udid" uname -m 2>/dev/null | tr -d '\r\n')"
+case "$arch" in arm64|x86_64) ;; *) arch="$(uname -m)";; esac
+log "simulator arch $arch"
 sdk="$(xcrun --sdk iphonesimulator --show-sdk-path)"
 xcrun --sdk iphonesimulator swiftc -swift-version 5 -parse-as-library \
   -module-name DoubaoKeyboardHost -sdk "$sdk" -target "$arch-apple-ios15.0-simulator" \
