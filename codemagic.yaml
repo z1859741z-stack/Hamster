@@ -106,3 +106,29 @@ workflows:
     artifacts:
       - .ci/output/*.ipa
       - .ci/output/*.sha256
+
+  # 豆包风格对照截图：只在模拟器里跑，只能通过 Codemagic API 手动启动（没有 triggering，push 不会触发）。
+  # 不签名、不发布、不改工程；产物是 .ci/shots 下的截图与日志，仅供人工对照参考图。
+  doubao-sim-shots:
+    name: Doubao style simulator screenshots
+    instance_type: mac_mini_m2
+    max_build_duration: 60
+    environment:
+      xcode: 26.6
+    scripts:
+      - name: Prepare pinned librime XCFramework and licenses
+        script: |
+          set -euo pipefail
+          bash ci_scripts/prepare-rime-framework.sh
+      - name: Build fixed offline schema resources
+        script: |
+          set -euo pipefail
+          bash ci_scripts/build-schema-fixed.sh --third-party-notices Frameworks/CI-licenses/librime-xcframework/third-party-notices.zip
+      - name: Simulator screenshots
+        script: |
+          bash ci_scripts/doubao-sim-shots.sh
+    artifacts:
+      - .ci/shots/*.png
+      - .ci/shots/*.txt
+      - .ci/shots/*.log
+      - .ci/shots/*.json
