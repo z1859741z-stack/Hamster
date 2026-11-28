@@ -75,6 +75,24 @@ public extension KeyboardLayoutConfiguration
     for context: KeyboardContext
   ) -> KeyboardLayoutConfiguration
   {
+    var config = unscaledStandard(for: context)
+    // 键盘高度调节（设置里的滑杆，0.8–1.3）：只放大/缩小行高，按键内边距不变，横竖屏都生效。
+    let scale = context.keyboardHeightScale
+    if abs(scale - 1) > 0.001 {
+      config.rowHeight = (config.rowHeight * scale * 2).rounded() / 2
+    }
+    return config
+  }
+
+  /// 不含高度调节的标准配置。
+  static func unscaledStandard(
+    for context: KeyboardContext
+  ) -> KeyboardLayoutConfiguration
+  {
+    // 豆包风格：iPhone 非浮动时用按豆包截图量出的几何（见 doubaoPhone / doubaoPhoneLandscape）。
+    if context.isDoubaoStyleEnabled, !context.isKeyboardFloating, context.deviceType == .phone {
+      return context.interfaceOrientation.isPortrait ? .doubaoPhone : .doubaoPhoneLandscape
+    }
     // 液态玻璃（iOS 26 样式）：大屏 iPhone 竖屏（16 Pro Max 是 440×956，原判断只认 428×926）
     // 用 Pro Max 行高 56 / 按键高 45，和系统键盘真机截图一致。
     if context.isLiquidGlassEnabled, !context.isKeyboardFloating, context.deviceType == .phone,
@@ -306,4 +324,19 @@ public extension KeyboardLayoutConfiguration
    标准 iPhone Pro Max 横向行高。
    */
   static var standardPhoneProMaxLandscapeRowHeight = 40.0
+
+  /**
+   豆包风格 iPhone 竖屏：按豆包输入法 iOS 版截图（ref4，1080px 宽，按 393pt 宽屏换算 0.364pt/px）量得：
+   行距 158px≈57.5pt，字母键 92×129px≈33.5×47pt，键间横向空隙 14px≈5pt，纵向空隙 30px≈11pt，圆角约 19px≈7pt。
+   */
+  static var doubaoPhone = KeyboardLayoutConfiguration(
+    buttonCornerRadius: 7,
+    buttonInsets: .horizontal(2.6, vertical: 5.25),
+    rowHeight: 57)
+
+  /// 豆包风格 iPhone 横屏（无横屏参考图，按竖屏比例收窄，估值）。
+  static var doubaoPhoneLandscape = KeyboardLayoutConfiguration(
+    buttonCornerRadius: 6,
+    buttonInsets: .horizontal(3, vertical: 3.5),
+    rowHeight: 41)
 }

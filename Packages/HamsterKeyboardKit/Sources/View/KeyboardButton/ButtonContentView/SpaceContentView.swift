@@ -69,6 +69,27 @@ class SpaceContentView: NibLessView {
     return textView
   }()
 
+  /// 豆包风格：空格中间显示声波小图标（中文模式不显示文字，ref4）。
+  private var isDoubaoWaveApplicable: Bool {
+    keyboardContext.isDoubaoStyleEnabled
+      && keyboardContext.deviceType == .phone
+      && !keyboardContext.keyboardType.isCustom
+      && !keyboardContext.keyboardType.isNumber
+      && !keyboardContext.showCurrentInputSchemaNameForSpaceButton
+  }
+
+  private lazy var waveView: DoubaoGlyphView = {
+    DoubaoGlyphView(kind: .spaceWave, primaryColor: style.foregroundColor ?? .label, isDark: keyboardContext.hasDarkColorScheme)
+  }()
+
+  /// 中文 26 键 + 中文模式显示声波、隐藏文字；英文（含中文键盘切到英文模式）显示 "space"。
+  private func updateDoubaoWave() {
+    guard isDoubaoWaveApplicable else { return }
+    let showWave = keyboardContext.keyboardType.isChinesePrimaryKeyboard && !rimeContext.asciiMode
+    waveView.isHidden = !showWave
+    textView.isHidden = showWave
+  }
+
   var isShowLoadingText: Bool {
     if keyboardContext.keyboardType.isNumber || !keyboardContext.enableLoadingTextForSpaceButton {
       return false
@@ -90,6 +111,10 @@ class SpaceContentView: NibLessView {
   }
 
   func setupView() {
+    if isDoubaoWaveApplicable {
+      addSubview(waveView)
+      updateDoubaoWave()
+    }
     /// 数字键盘不显示加载文字
     if !isShowLoadingText {
       addSubview(textView)
@@ -115,9 +140,15 @@ class SpaceContentView: NibLessView {
       loadingLabel.frame = oldBounds
     }
     textView.frame = oldBounds
+    if waveView.superview != nil {
+      waveView.frame = oldBounds
+    }
   }
 
   override func setupAppearance() {
+    if waveView.superview != nil {
+      waveView.update(primaryColor: style.foregroundColor ?? .label, isDark: keyboardContext.hasDarkColorScheme)
+    }
     loadingLabel.textColor = style.foregroundColor
     textView.setStyle(style)
   }
@@ -157,6 +188,7 @@ class SpaceContentView: NibLessView {
       .receive(on: DispatchQueue.main)
       .sink { [weak self] _ in
         self?.updateSpaceText()
+        self?.updateDoubaoWave()
       }
       .store(in: &subscriptions)
   }

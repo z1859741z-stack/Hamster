@@ -54,6 +54,12 @@ public struct CandidateBarStyle: Equatable {
   /// 候选工具栏按钮按下时背景色
   public var toolbarButtonPressedBackgroundColor: UIColor
 
+  /// 候选栏：首选候选文字字体（nil 时与次选同字体）。豆包风格用它把首选放大。
+  public var preferredCandidateTextFont: UIFont? = nil
+
+  /// 候选栏：首选高亮圆角
+  public var preferredCandidateCornerRadius: CGFloat = 5
+
   public init(
     phoneticTextColor: UIColor,
     phoneticTextFont: UIFont,

@@ -55,6 +55,9 @@ open class iPhoneKeyboardLayoutProvider: SystemKeyboardLayoutProvider {
    根据提供的 `context`、`row` 和行中 `index` 获取某个 `action` 的键盘布局 item 的宽度。
    */
   override open func itemSizeWidth(for action: KeyboardAction, row: Int, index: Int, context: KeyboardContext, actions: KeyboardActionRows) -> KeyboardLayoutItemWidth {
+    if let width = doubaoBottomRowWidth(for: action, row: row, index: index, context: context, actions: actions) {
+      return width
+    }
     switch action {
     case context.keyboardDictationReplacement: return bottomSystemButtonWidth(for: context)
     case .character, .symbol: return isLastNumericInputRow(row, for: context) ? lastSymbolicInputWidth(for: context) : .input
@@ -169,6 +172,8 @@ open class iPhoneKeyboardLayoutProvider: SystemKeyboardLayoutProvider {
    在普通键盘第三行 input 类型按钮的左右两侧，显示的系统按钮（如删除键，Shift键）的布局 item 的宽度
    */
   open func lowerSystemButtonWidth(for context: KeyboardContext) -> KeyboardLayoutItemWidth {
+    // 豆包风格：⇧ / ⌫ 约 0.134（ref4）。
+    if isDoubaoPrimaryKeyboard(context) { return .percentage(0.134) }
     return .percentage(0.13)
   }
 
@@ -180,6 +185,14 @@ open class iPhoneKeyboardLayoutProvider: SystemKeyboardLayoutProvider {
   open func bottomActions(
     for context: KeyboardContext
   ) -> KeyboardActions {
+    // 豆包风格英文 26 键：123 |（地球）| ,. | 空格 | 中/英（回中文主键盘）| 回车。邮箱框照旧补 @ 与 .。
+    if context.keyboardType.isAlphabetic, isDoubaoPrimaryKeyboard(context) {
+      var result = doubaoBottomActions(for: context, switchAction: .keyboardType(context.selectKeyboard))
+      if context.textDocumentProxy.keyboardType == .emailAddress, !result.isEmpty {
+        result.insert(contentsOf: [.symbol(.init(char: "@"))], at: result.count - 1)
+      }
+      return result
+    }
     var result = KeyboardActions()
     if let action = keyboardSwitchActionForBottomRow(for: context) { result.append(action) }
 

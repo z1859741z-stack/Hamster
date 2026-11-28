@@ -50,6 +50,9 @@ open class iPhoneChineseKeyboardLayoutProvider: SystemKeyboardLayoutProvider {
    根据提供的 `context`、`row` 和行中 `index` 获取某个 `action` 的键盘布局 item 的宽度。
    */
   override open func itemSizeWidth(for action: KeyboardAction, row: Int, index: Int, context: KeyboardContext, actions: KeyboardActionRows) -> KeyboardLayoutItemWidth {
+    if let width = doubaoBottomRowWidth(for: action, row: row, index: index, context: context, actions: actions) {
+      return width
+    }
     switch action {
     // case context.keyboardDictationReplacement: return bottomSystemButtonWidth(for: context)
     case .character, .symbol: return isLastNumericInputRow(row, for: context) ? lastSymbolicInputWidth(for: context) : .input
@@ -164,6 +167,8 @@ open class iPhoneChineseKeyboardLayoutProvider: SystemKeyboardLayoutProvider {
    在普通键盘第三行 input 类型按钮的左右两侧，显示的系统按钮（如删除键，Shift键）的布局 item 的宽度
    */
   open func lowerSystemButtonWidth(for context: KeyboardContext) -> KeyboardLayoutItemWidth {
+    // 豆包风格：⇧ / ⌫ 约 128px / 1050px ≈ 0.134（ref4）。
+    if isDoubaoPrimaryKeyboard(context) { return .percentage(0.134) }
     return .percentage(0.13)
   }
 
@@ -175,6 +180,10 @@ open class iPhoneChineseKeyboardLayoutProvider: SystemKeyboardLayoutProvider {
   open func bottomActions(
     for context: KeyboardContext
   ) -> KeyboardActions {
+    // 豆包风格：123 |（地球）| ，。| 空格 | 中/英 | 回车（自定义的空格左右键、分类符号键此时不显示）。
+    if context.keyboardType.isChinesePrimaryKeyboard, isDoubaoPrimaryKeyboard(context) {
+      return doubaoBottomActions(for: context, switchAction: needsChineseEnglishSwitchAction(for: context))
+    }
     var result = KeyboardActions()
     if let action = keyboardSwitchActionForBottomRow(for: context) { result.append(action) }
 

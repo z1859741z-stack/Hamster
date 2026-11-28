@@ -15,6 +15,7 @@ public class SimplePreferencesRootView: NibLessView {
     let tableView = UITableView(frame: .zero, style: .insetGrouped)
     tableView.register(ToggleTableViewCell.self, forCellReuseIdentifier: ToggleTableViewCell.identifier)
     tableView.register(StepperTableViewCell.self, forCellReuseIdentifier: StepperTableViewCell.identifier)
+    tableView.register(SliderTableViewCell.self, forCellReuseIdentifier: SliderTableViewCell.identifier)
     tableView.register(SettingTableViewCell.self, forCellReuseIdentifier: SettingTableViewCell.identifier)
     return tableView
   }()
@@ -22,6 +23,12 @@ public class SimplePreferencesRootView: NibLessView {
   public init(frame: CGRect = .zero, viewModel: SimplePreferencesViewModel) {
     self.viewModel = viewModel
     super.init(frame: frame)
+    // 豆包风格 / 液态玻璃互斥：一个打开时另一个自动关，刷新表让开关同步。
+    viewModel.reloadHandler = { [weak self] in
+      DispatchQueue.main.async {
+        self?.tableView.reloadData()
+      }
+    }
     constructViewHierarchy()
     activateViewConstraints()
   }
@@ -55,6 +62,12 @@ extension SimplePreferencesRootView: UITableViewDataSource {
 
   public func tableView(_ tableView: UITableView, cellForRowAt indexPath: IndexPath) -> UITableViewCell {
     let settingItem = viewModel.settings[indexPath.section].items[indexPath.row]
+    if settingItem.displayAsSlider {
+      let cell = tableView.dequeueReusableCell(withIdentifier: SliderTableViewCell.identifier, for: indexPath)
+      guard let cell = cell as? SliderTableViewCell else { return cell }
+      cell.updateWithSettingItem(settingItem)
+      return cell
+    }
     if settingItem.type == .step {
       let cell = tableView.dequeueReusableCell(withIdentifier: StepperTableViewCell.identifier, for: indexPath)
       guard let cell = cell as? StepperTableViewCell else { return cell }

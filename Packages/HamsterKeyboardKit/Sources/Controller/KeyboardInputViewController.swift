@@ -654,6 +654,21 @@ open class KeyboardInputViewController: UIInputViewController, KeyboardControlle
   }
 
   open func openUrl(_ url: URL?) {
+    // iOS 18 起 UIApplication 的 openURL: 已失效，先走 openURL:options:completionHandler:（同一条响应链），
+    // 找不到再回落到旧的 openURL:。只用于打开本 App 自己的 URL（如豆包风格工具栏的 ⌘ 按钮），不联网。
+    if let url = url {
+      let modernSelector = NSSelectorFromString("openURL:options:completionHandler:")
+      var modernResponder = self as UIResponder?
+      while let r = modernResponder {
+        if r.responds(to: modernSelector) {
+          typealias OpenURLFunction = @convention(c) (AnyObject, Selector, NSURL, NSDictionary, AnyObject?) -> Void
+          let function = unsafeBitCast(r.method(for: modernSelector), to: OpenURLFunction.self)
+          function(r, modernSelector, url as NSURL, NSDictionary(), nil)
+          return
+        }
+        modernResponder = r.next
+      }
+    }
     let selector = sel_registerName("openURL:")
     var responder = self as UIResponder?
     while let r = responder, !r.responds(to: selector) {

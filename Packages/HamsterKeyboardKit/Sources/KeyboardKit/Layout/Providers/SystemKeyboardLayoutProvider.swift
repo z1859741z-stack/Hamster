@@ -182,6 +182,10 @@ open class SystemKeyboardLayoutProvider: KeyboardLayoutProvider {
    根据提供的布局参数获取布局 item 的划动配置。
    */
   open func itemSwipes(for action: KeyboardAction, row: Int, index: Int, context: KeyboardContext) -> [KeySwipe] {
+    // 豆包风格「，。」键：点按出「，」，上滑出「。」（英文键盘为 , 与 .），都交给 RIME/直接上屏的现有通道。
+    if let swipes = doubaoCommaKeySwipes(for: action, row: row, context: context) {
+      return swipes
+    }
     let keyboardTypeKey: KeyboardType = {
       if context.keyboardType.isChinesePrimaryKeyboard {
         return .chinese(.lowercased)
@@ -231,6 +235,60 @@ open class SystemKeyboardLayoutProvider: KeyboardLayoutProvider {
     case .character, .symbol: return .input
     default: return .available
     }
+  }
+
+  // MARK: - 豆包风格
+
+  /// 豆包风格是否作用于当前 26 键主键盘（中文 26 键或英文 26 键，iPhone 非浮动）。
+  open func isDoubaoPrimaryKeyboard(_ context: KeyboardContext) -> Bool {
+    guard context.isDoubaoStyleEnabled, context.deviceType == .phone, !context.isKeyboardFloating else { return false }
+    return context.keyboardType.isChinesePrimaryKeyboard || context.keyboardType.isAlphabetic
+  }
+
+  /// 豆包风格「，。」键是否为这个 action（最下一行的 `,` 字符键）。
+  open func isDoubaoCommaKey(_ action: KeyboardAction, row: Int, context: KeyboardContext) -> Bool {
+    guard row == 3, isDoubaoPrimaryKeyboard(context) else { return false }
+    if case .character(let char) = action, char == "," { return true }
+    return false
+  }
+
+  /// 豆包风格「，。」键的上滑配置。
+  open func doubaoCommaKeySwipes(for action: KeyboardAction, row: Int, context: KeyboardContext) -> [KeySwipe]? {
+    guard isDoubaoCommaKey(action, row: row, context: context) else { return nil }
+    let label = context.keyboardType.isAlphabetic ? "." : "。"
+    return [KeySwipe(direction: .up, action: .character("."), processByRIME: true, display: false, label: KeyLabel(loadingText: "", text: label))]
+  }
+
+  /**
+   豆包风格最下一行宽度（ref4 量得，占整行宽度比例）：
+   「123」约 0.20 |「，。」约 0.106 | 空格 = 剩余 |「中/英」约 0.11 | 回车约 0.21。
+   不适用时返回 nil，走原有宽度逻辑。
+   */
+  open func doubaoBottomRowWidth(for action: KeyboardAction, row: Int, index: Int, context: KeyboardContext, actions: KeyboardActionRows) -> KeyboardLayoutItemWidth? {
+    guard row == 3, row == actions.count - 1, isDoubaoPrimaryKeyboard(context) else { return nil }
+    let portrait = isPortrait(context)
+    switch action {
+    case .space: return .available
+    case .primary: return .percentage(portrait ? 0.21 : 0.17)
+    case .nextKeyboard: return .percentage(portrait ? 0.11 : 0.09)
+    default: break
+    }
+    if index == 0 { return .percentage(portrait ? 0.2 : 0.15) }
+    if case .character(let char) = action, char == "," { return .percentage(portrait ? 0.106 : 0.09) }
+    if case .keyboardType = action { return .percentage(portrait ? 0.11 : 0.09) }
+    return nil
+  }
+
+  /// 豆包风格最下一行：「123」|（地球）|「，。」| 空格 |「中/英」| 回车。
+  open func doubaoBottomActions(for context: KeyboardContext, switchAction: KeyboardAction?) -> KeyboardActions {
+    var result = KeyboardActions()
+    if let action = keyboardSwitchActionForBottomRow(for: context) { result.append(action) }
+    if context.needsInputModeSwitchKey { result.append(.nextKeyboard) }
+    result.append(.character(","))
+    result.append(.space)
+    if let switchAction { result.append(switchAction) }
+    result.append(keyboardReturnAction(for: context))
+    return result
   }
 
   /// 最后面一行（空格所在行）大的按钮(如 `Return` 键)的宽度。

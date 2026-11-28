@@ -112,6 +112,41 @@ public class CandidateBarView: NibLessView {
     return view
   }()
 
+  /// 豆包风格候选栏（iPhone 非浮动、横向划动候选模式）：右侧「×」清空输入，再右是展开更多候选。
+  private var isDoubaoCandidateBar: Bool {
+    keyboardContext.isDoubaoStyleEnabled && keyboardContext.deviceType == .phone && !keyboardContext.isKeyboardFloating && keyboardContext.swipePaging
+  }
+
+  /// 豆包风格「×」：清空当前输入（与「重输」同一动作）。
+  lazy var clearInputButton: UIButton = {
+    let button = UIButton(type: .system)
+    button.translatesAutoresizingMaskIntoConstraints = false
+    button.setImage(UIImage(systemName: "xmark", withConfiguration: UIImage.SymbolConfiguration(pointSize: 15, weight: .regular)), for: .normal)
+    button.accessibilityLabel = "清空输入"
+    button.addTarget(self, action: #selector(clearInputAction), for: .touchUpInside)
+    return button
+  }()
+
+  @objc func clearInputAction() {
+    actionHandler.handle(.release, on: .cleanSpellingArea)
+  }
+
+  /// 候选区右边界：豆包风格时接「×」，否则接展开按钮。
+  private var candidatesTrailingAnchor: NSLayoutXAxisAnchor {
+    isDoubaoCandidateBar ? clearInputButton.leadingAnchor : controlStateView.leadingAnchor
+  }
+
+  /// 豆包风格「×」的约束（与展开按钮同高、同顶）。
+  private func clearInputButtonConstraints(top: NSLayoutYAxisAnchor, height: CGFloat) -> [NSLayoutConstraint] {
+    guard isDoubaoCandidateBar else { return [] }
+    return [
+      clearInputButton.topAnchor.constraint(equalTo: top),
+      clearInputButton.heightAnchor.constraint(equalToConstant: height),
+      clearInputButton.widthAnchor.constraint(equalToConstant: 36),
+      clearInputButton.trailingAnchor.constraint(equalTo: controlStateView.leadingAnchor),
+    ]
+  }
+
   // MARK: - 计算属性
 
   /// 布局配置
@@ -146,6 +181,10 @@ public class CandidateBarView: NibLessView {
     if keyboardContext.swipePaging {
       addSubview(candidatesArea)
       addSubview(controlStateView)
+      if isDoubaoCandidateBar {
+        addSubview(clearInputButton)
+        verticalLine.isHidden = true
+      }
     } else {
       addSubview(candidatesPagingArea)
     }
@@ -165,13 +204,13 @@ public class CandidateBarView: NibLessView {
           candidatesView.topAnchor.constraint(equalTo: topAnchor),
           candidatesView.bottomAnchor.constraint(equalTo: bottomAnchor),
           candidatesView.leadingAnchor.constraint(equalTo: leadingAnchor, constant: buttonInsets.left),
-          candidatesView.trailingAnchor.constraint(equalTo: controlStateView.leadingAnchor, constant: -8),
+          candidatesView.trailingAnchor.constraint(equalTo: candidatesTrailingAnchor, constant: -8),
 
           controlStateView.heightAnchor.constraint(equalTo: controlStateView.widthAnchor, multiplier: 1.0),
           controlStateView.topAnchor.constraint(equalTo: topAnchor),
           controlStateView.trailingAnchor.constraint(equalTo: trailingAnchor),
           controlStateView.heightAnchor.constraint(equalToConstant: controlStateHeight)
-        ])
+        ] + clearInputButtonConstraints(top: topAnchor, height: controlStateHeight))
       } else {
         NSLayoutConstraint.activate([
           candidatesView.topAnchor.constraint(equalTo: topAnchor),
@@ -191,13 +230,13 @@ public class CandidateBarView: NibLessView {
           candidatesView.topAnchor.constraint(equalTo: phoneticLabel.bottomAnchor),
           candidatesView.bottomAnchor.constraint(equalTo: bottomAnchor),
           candidatesView.leadingAnchor.constraint(equalTo: leadingAnchor, constant: buttonInsets.left),
-          candidatesView.trailingAnchor.constraint(equalTo: controlStateView.leadingAnchor, constant: -8),
+          candidatesView.trailingAnchor.constraint(equalTo: candidatesTrailingAnchor, constant: -8),
 
           controlStateView.heightAnchor.constraint(equalTo: controlStateView.widthAnchor, multiplier: 1.0),
           controlStateView.topAnchor.constraint(equalTo: phoneticLabel.bottomAnchor),
           controlStateView.trailingAnchor.constraint(equalTo: trailingAnchor),
           controlStateView.heightAnchor.constraint(equalToConstant: controlStateHeight)
-        ])
+        ] + clearInputButtonConstraints(top: phoneticLabel.bottomAnchor, height: controlStateHeight))
       } else {
         NSLayoutConstraint.activate([
           phoneticLabel.leadingAnchor.constraint(equalTo: leadingAnchor, constant: Self.phoneticLeadingMargin),
@@ -218,6 +257,9 @@ public class CandidateBarView: NibLessView {
     phoneticLabel.font = style.phoneticTextFont
     phoneticLabel.textColor = style.phoneticTextColor
     stateImageView.tintColor = style.candidateTextColor
+    if isDoubaoCandidateBar {
+      clearInputButton.tintColor = style.candidateTextColor
+    }
 
     if keyboardContext.swipePaging {
       candidatesArea.setupStyle(style)
@@ -234,7 +276,8 @@ public class CandidateBarView: NibLessView {
   @objc func changeState() {
     let state: State = keyboardContext.candidatesViewState.isCollapse() ? .expand : .collapse
     stateImageView.image = stateImage(state)
-    verticalLine.isHidden = state == .expand
+    verticalLine.isHidden = state == .expand || isDoubaoCandidateBar
+
     keyboardContext.candidatesViewState = state
   }
 

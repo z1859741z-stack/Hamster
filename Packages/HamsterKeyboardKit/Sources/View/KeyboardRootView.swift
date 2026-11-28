@@ -228,8 +228,10 @@ class KeyboardRootView: NibLessView {
   }
 
   /// 液态玻璃（iOS 26 样式）：系统键盘两侧比我们多留约 3.5pt。
+  /// 豆包风格：键盘两侧约 3pt（ref4：最外侧按键距屏幕边 15px≈5.5pt，减去按键自身 2.6pt 内边距）。
   private var glassSideInset: CGFloat {
-    keyboardContext.isLiquidGlassEnabled ? 3.5 : 0
+    if keyboardContext.isDoubaoStyleEnabled, keyboardContext.deviceType == .phone, !keyboardContext.isKeyboardFloating { return 3 }
+    return keyboardContext.isLiquidGlassEnabled ? 3.5 : 0
   }
 
   // MARK: - Layout
@@ -337,6 +339,10 @@ class KeyboardRootView: NibLessView {
         guard $0 != self.interfaceOrientation else { return }
         self.interfaceOrientation = $0
         self.primaryKeyboardView.setNeedsLayout()
+        // 豆包风格横竖屏工具栏高度不同（56 / 44pt），候选栏收起时跟着改。
+        if self.keyboardContext.isDoubaoStyleEnabled, self.candidateViewState.isCollapse() {
+          self.toolbarHeightConstraint?.constant = self.keyboardContext.heightOfToolbar
+        }
       }
       .store(in: &subscriptions)
 

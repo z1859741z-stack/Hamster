@@ -156,7 +156,13 @@ public struct KeyboardConfiguration: Codable, Hashable {
   // 低于 iOS 26 时主 App 里开关置灰，键盘侧直接忽略。
   public var liquidGlassStyle: Bool?
 
-  public init(useKeyboardType: String? = nil, disableSwipeLabel: Bool? = nil, upSwipeOnLeft: Bool? = nil, swipeLabelUpAndDownLayout: Bool? = nil, swipeLabelUpAndDownIrregularLayout: Bool? = nil, displayButtonBubbles: Bool? = nil, enableKeySounds: Bool? = nil, enableHapticFeedback: Bool? = nil, hapticFeedbackIntensity: Int? = nil, displaySemicolonButton: Bool? = nil, displayClassifySymbolButton: Bool? = nil, displaySpaceLeftButton: Bool? = nil, spaceLeftButtonProcessByRIME: Bool? = nil, keyValueOfSpaceLeftButton: String? = nil, displaySpaceRightButton: Bool? = nil, spaceRightButtonProcessByRIME: Bool? = nil, keyValueOfSpaceRightButton: String? = nil, displayChineseEnglishSwitchButton: Bool? = nil, chineseEnglishSwitchButtonIsOnLeftOfSpaceButton: Bool? = nil, enableNineGridOfNumericKeyboard: Bool? = nil, numberKeyProcessByRimeOnNineGridOfNumericKeyboard: Bool? = nil, leftSymbolProcessByRimeOnNineGridOfNumericKeyboard: Bool? = nil, rightSymbolProcessByRimeOnNineGridOfNumericKeyboard: Bool? = nil, symbolsOfGridOfNumericKeyboard: [String]? = nil, lockShiftState: Bool? = nil, enableEmbeddedInputMode: Bool? = nil, widthOfOneHandedKeyboard: Int? = nil, symbolsOfCursorBack: [String]? = nil, symbolsOfReturnToMainKeyboard: [String]? = nil, symbolsOfChineseNineGridKeyboard: [String]? = nil, pairsOfSymbols: [String]? = nil, enableSymbolKeyboard: Bool? = nil, lockForSymbolKeyboard: Bool? = nil, enableColorSchema: Bool? = nil, useColorSchemaForLight: String? = nil, useColorSchemaForDark: String? = nil, colorSchemas: [KeyboardColorSchema]? = nil, enableLoadingTextForSpaceButton: Bool? = nil, loadingTextForSpaceButton: String? = nil, labelTextForSpaceButton: String? = nil, showCurrentInputSchemaNameForSpaceButton: Bool? = nil, showCurrentInputSchemaNameOnLoadingTextForSpaceButton: Bool? = nil, showUppercasedCharacterOnChineseKeyboard: Bool? = nil, enableButtonUnderBorder: Bool? = nil, showPopupLatency: Bool? = nil, liquidGlassStyle: Bool? = nil) {
+  // 豆包风格外观（默认开，nil 视为开）：只仿外观与布局，不含任何联网功能。开时液态玻璃样式不生效。
+  public var doubaoStyle: Bool?
+
+  // 键盘高度比例（0.8–1.3，nil 视为 1.0）：乘到键盘每行行高上，横竖屏都生效；工具栏/候选栏高度不变。
+  public var keyboardHeightScale: Double?
+
+  public init(useKeyboardType: String? = nil, disableSwipeLabel: Bool? = nil, upSwipeOnLeft: Bool? = nil, swipeLabelUpAndDownLayout: Bool? = nil, swipeLabelUpAndDownIrregularLayout: Bool? = nil, displayButtonBubbles: Bool? = nil, enableKeySounds: Bool? = nil, enableHapticFeedback: Bool? = nil, hapticFeedbackIntensity: Int? = nil, displaySemicolonButton: Bool? = nil, displayClassifySymbolButton: Bool? = nil, displaySpaceLeftButton: Bool? = nil, spaceLeftButtonProcessByRIME: Bool? = nil, keyValueOfSpaceLeftButton: String? = nil, displaySpaceRightButton: Bool? = nil, spaceRightButtonProcessByRIME: Bool? = nil, keyValueOfSpaceRightButton: String? = nil, displayChineseEnglishSwitchButton: Bool? = nil, chineseEnglishSwitchButtonIsOnLeftOfSpaceButton: Bool? = nil, enableNineGridOfNumericKeyboard: Bool? = nil, numberKeyProcessByRimeOnNineGridOfNumericKeyboard: Bool? = nil, leftSymbolProcessByRimeOnNineGridOfNumericKeyboard: Bool? = nil, rightSymbolProcessByRimeOnNineGridOfNumericKeyboard: Bool? = nil, symbolsOfGridOfNumericKeyboard: [String]? = nil, lockShiftState: Bool? = nil, enableEmbeddedInputMode: Bool? = nil, widthOfOneHandedKeyboard: Int? = nil, symbolsOfCursorBack: [String]? = nil, symbolsOfReturnToMainKeyboard: [String]? = nil, symbolsOfChineseNineGridKeyboard: [String]? = nil, pairsOfSymbols: [String]? = nil, enableSymbolKeyboard: Bool? = nil, lockForSymbolKeyboard: Bool? = nil, enableColorSchema: Bool? = nil, useColorSchemaForLight: String? = nil, useColorSchemaForDark: String? = nil, colorSchemas: [KeyboardColorSchema]? = nil, enableLoadingTextForSpaceButton: Bool? = nil, loadingTextForSpaceButton: String? = nil, labelTextForSpaceButton: String? = nil, showCurrentInputSchemaNameForSpaceButton: Bool? = nil, showCurrentInputSchemaNameOnLoadingTextForSpaceButton: Bool? = nil, showUppercasedCharacterOnChineseKeyboard: Bool? = nil, enableButtonUnderBorder: Bool? = nil, showPopupLatency: Bool? = nil, liquidGlassStyle: Bool? = nil, doubaoStyle: Bool? = nil, keyboardHeightScale: Double? = nil) {
     self.useKeyboardType = useKeyboardType
     self.disableSwipeLabel = disableSwipeLabel
     self.upSwipeOnLeft = upSwipeOnLeft
@@ -203,6 +209,8 @@ public struct KeyboardConfiguration: Codable, Hashable {
     self.enableButtonUnderBorder = enableButtonUnderBorder
     self.showPopupLatency = showPopupLatency
     self.liquidGlassStyle = liquidGlassStyle
+    self.doubaoStyle = doubaoStyle
+    self.keyboardHeightScale = keyboardHeightScale
   }
 
   public init(from decoder: Decoder) throws {
@@ -253,6 +261,8 @@ public struct KeyboardConfiguration: Codable, Hashable {
     self.enableButtonUnderBorder = try container.decodeIfPresent(Bool.self, forKey: .enableButtonUnderBorder)
     self.showPopupLatency = try container.decodeIfPresent(Bool.self, forKey: .showPopupLatency)
     self.liquidGlassStyle = try container.decodeIfPresent(Bool.self, forKey: .liquidGlassStyle)
+    self.doubaoStyle = try container.decodeIfPresent(Bool.self, forKey: .doubaoStyle)
+    self.keyboardHeightScale = try container.decodeIfPresent(Double.self, forKey: .keyboardHeightScale)
   }
 
   enum CodingKeys: CodingKey {
@@ -302,6 +312,8 @@ public struct KeyboardConfiguration: Codable, Hashable {
     case enableButtonUnderBorder
     case showPopupLatency
     case liquidGlassStyle
+    case doubaoStyle
+    case keyboardHeightScale
   }
 
   public func encode(to encoder: Encoder) throws {
@@ -352,5 +364,7 @@ public struct KeyboardConfiguration: Codable, Hashable {
     try container.encodeIfPresent(self.enableButtonUnderBorder, forKey: .enableButtonUnderBorder)
     try container.encodeIfPresent(self.showPopupLatency, forKey: .showPopupLatency)
     try container.encodeIfPresent(self.liquidGlassStyle, forKey: .liquidGlassStyle)
+    try container.encodeIfPresent(self.doubaoStyle, forKey: .doubaoStyle)
+    try container.encodeIfPresent(self.keyboardHeightScale, forKey: .keyboardHeightScale)
   }
 }

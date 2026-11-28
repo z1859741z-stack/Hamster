@@ -35,9 +35,37 @@ public class KeyboardButtonContentView: NibLessView {
     return view
   }()
 
+  /// 豆包风格自绘按键（「，。」/「中/英」），不适用时为 nil。
+  private lazy var doubaoGlyphKind: DoubaoGlyphView.Kind? = {
+    guard keyboardContext.isDoubaoStyleEnabled, keyboardContext.deviceType == .phone, !keyboardContext.isKeyboardFloating else { return nil }
+    let onChinese = keyboardContext.keyboardType.isChinesePrimaryKeyboard
+    let onEnglish = keyboardContext.keyboardType.isAlphabetic
+    guard onChinese || onEnglish else { return nil }
+    switch action {
+    case .character(let char) where char == ",":
+      return .commaPeriod(chinese: onChinese)
+    case .keyboardType(let type):
+      if onChinese, type.isAlphabetic { return .chineseEnglish(chineseActive: true) }
+      if onEnglish, type.isChinesePrimaryKeyboard { return .chineseEnglish(chineseActive: false) }
+      return nil
+    default:
+      return nil
+    }
+  }()
+
+  private lazy var doubaoGlyphView: DoubaoGlyphView? = {
+    guard let kind = doubaoGlyphKind else { return nil }
+    return DoubaoGlyphView(
+      kind: kind,
+      primaryColor: style.foregroundColor ?? .label,
+      isDark: keyboardContext.hasDarkColorScheme)
+  }()
+
   private lazy var contentView: UIView = {
     let view: UIView
-    if action == .space {
+    if let glyphView = self.doubaoGlyphView {
+      view = glyphView
+    } else if action == .space {
       view = spaceContentView
     } else if let image = appearance.buttonImage(for: action), item.key?.label.text.isEmpty ?? true { // 自定义键盘可以为 backspace/shift 设置文本显示
       view = imageContentView
@@ -210,7 +238,9 @@ public class KeyboardButtonContentView: NibLessView {
   func setStyle(_ style: KeyboardButtonStyle) {
     self.style = style
     setupAppearance()
-    if action == .space {
+    if let glyphView = doubaoGlyphView {
+      glyphView.update(primaryColor: style.foregroundColor ?? .label, isDark: keyboardContext.hasDarkColorScheme)
+    } else if action == .space {
       spaceContentView.setStyle(style)
     } else if let image = appearance.buttonImage(for: action) {
       spaceContentView.setStyle(style)

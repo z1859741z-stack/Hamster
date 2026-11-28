@@ -104,6 +104,41 @@ public class SimplePreferencesViewModel {
     }
   }
 
+  // MARK: - 豆包风格（新增；默认开，nil 视为开）
+
+  public var doubaoStyle: Bool {
+    get {
+      HamsterAppDependencyContainer.shared.configuration.keyboard?.doubaoStyle ?? true
+    }
+    set {
+      HamsterAppDependencyContainer.shared.configuration.keyboard?.doubaoStyle = newValue
+      HamsterAppDependencyContainer.shared.applicationConfiguration.keyboard?.doubaoStyle = newValue
+    }
+  }
+
+  /// 液态玻璃开关的界面显示值：豆包风格开着时液态玻璃不生效，开关显示为关。
+  private var liquidGlassStyleEffective: Bool {
+    liquidGlassStyle && !doubaoStyle
+  }
+
+  // MARK: - 键盘高度（新增；80%–130%，默认 100%）
+
+  /// 以百分比表示的键盘高度（80–130）。配置里存比例（0.8–1.3）。
+  public var keyboardHeightPercent: Double {
+    get {
+      let scale = HamsterAppDependencyContainer.shared.configuration.keyboard?.keyboardHeightScale ?? 1.0
+      return min(max((scale * 100).rounded(), 80), 130)
+    }
+    set {
+      let scale = min(max(newValue, 80), 130) / 100
+      HamsterAppDependencyContainer.shared.configuration.keyboard?.keyboardHeightScale = scale
+      HamsterAppDependencyContainer.shared.applicationConfiguration.keyboard?.keyboardHeightScale = scale
+    }
+  }
+
+  /// 外观开关互斥后通知界面刷新另一个开关。
+  public var reloadHandler: (() -> Void)?
+
   // MARK: - 设置表
 
   public lazy var settings: [SettingSectionModel] = [
@@ -159,16 +194,32 @@ public class SimplePreferencesViewModel {
       ]),
     .init(
       title: "外观",
-      footer: "液态玻璃样式（实验性）：开启后按键改成 iOS 26 系统键盘的样子：所有按键同一个颜色（浅色白、深色灰）、更圆的角、没有底部阴影。需要 iOS 26 及以上，低版本上开关不可用。键盘每次弹出时重读本开关。",
+      footer: "豆包风格（默认开）：按豆包输入法 iOS 版 26 键的样子排版和配色：白色圆角字母键、灰色功能键、顶部 ⌘ / 点击说话 / 收起按钮、「，。」键、声波空格、「中/英」键和蓝色回车。只仿外观，不联网；离线版不支持语音，点「点击说话」只会提示。豆包风格和液态玻璃样式二选一，打开一个会自动关掉另一个；使用自定义配色方案时豆包风格不生效。液态玻璃样式（实验性）需要 iOS 26 及以上。键盘高度：80%–130%，只改按键行高，横竖屏都生效。以上设置在键盘下次弹出时生效。",
       items: [
+        .init(
+          text: "豆包风格",
+          type: .toggle,
+          toggleValue: { [unowned self] in doubaoStyle },
+          toggleHandled: { [unowned self] in
+            doubaoStyle = $0
+            if $0, liquidGlassStyle {
+              liquidGlassStyle = false
+            }
+            reloadHandler?()
+          }),
         .init(
           text: "液态玻璃样式",
           type: .toggle,
-          toggleValue: { [unowned self] in liquidGlassStyle },
+          toggleValue: { [unowned self] in liquidGlassStyleEffective },
           toggleHandled: { [unowned self] in
             liquidGlassStyle = $0
+            if $0, doubaoStyle {
+              doubaoStyle = false
+            }
+            reloadHandler?()
           },
           isEnabled: Self.supportsLiquidGlass),
+        keyboardHeightItem,
       ]),
     .init(
       title: "调试",
@@ -183,6 +234,24 @@ public class SimplePreferencesViewModel {
           }),
       ]),
   ]
+
+  /// 「键盘高度」滑杆行：80%–130%，5% 一档，默认 100%。
+  private var keyboardHeightItem: SettingItemModel {
+    var item = SettingItemModel(
+      text: "键盘高度",
+      type: .step,
+      textValue: { [unowned self] in "\(Int(keyboardHeightPercent))%" },
+      minValue: 80,
+      maxValue: 130,
+      stepValue: 5,
+      valueChangeHandled: { [unowned self] in
+        keyboardHeightPercent = $0
+      })
+    item.displayAsSlider = true
+    item.sliderValue = { [unowned self] in keyboardHeightPercent }
+    item.sliderValueText = { "\(Int($0))%" }
+    return item
+  }
 
   init() {}
 }

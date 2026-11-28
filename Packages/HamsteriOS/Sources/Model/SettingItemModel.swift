@@ -40,6 +40,13 @@ public struct SettingItemModel: Hashable, Identifiable {
   public var stepValue: Double
   public var valueChangeHandled: ((Double) -> Void)?
 
+  // 滑杆属性（精简设置页「键盘高度」用）：displayAsSlider 为 true 时 .step 行渲染成滑杆。
+  // 当前值取 sliderValue，范围 minValue–maxValue，按 stepValue 吸附；松手时调 valueChangeHandled。
+  public var displayAsSlider: Bool = false
+  public var sliderValue: (() -> Double)?
+  /// 滑杆右侧数值文字（如 "100%"）
+  public var sliderValueText: ((Double) -> String)?
+
   init(
     icon: UIImage? = nil,
     iconBackgroundColor: UIColor? = nil,

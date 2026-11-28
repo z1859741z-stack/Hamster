@@ -298,7 +298,8 @@ public class KeyboardButton: UIControl {
     layer.shadowColor = shadow.color.cgColor
     layer.shadowOpacity = pressed ? 0 : 1
     layer.shadowOffset = CGSize(width: 0, height: shadow.size)
-    layer.shadowRadius = shadow.size
+    // 豆包风格：硬边细阴影（无模糊），按 ref4 量得。
+    layer.shadowRadius = keyboardContext.isDoubaoStyleEnabled ? 0 : shadow.size
     if let cornerRadius = style.cornerRadius {
       layer.shadowPath = UIBezierPath(roundedRect: buttonContentView.bounds, cornerRadius: cornerRadius).cgPath
     } else {

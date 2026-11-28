@@ -69,7 +69,7 @@ class CandidateWordCell: UICollectionViewCell {
 
     var backgroundConfiguration = UIBackgroundConfiguration.clear()
     if (state.candidateSuggestion?.isAutocomplete ?? false) || state.isSelected || state.isHighlighted {
-      backgroundConfiguration.cornerRadius = 5
+      backgroundConfiguration.cornerRadius = style?.preferredCandidateCornerRadius ?? 5
       backgroundConfiguration.backgroundColor = style?.preferredCandidateBackgroundColor
     }
 
@@ -121,7 +121,8 @@ public extension CandidateSuggestion {
     }
 
     let textColor = isAutocomplete ? style.preferredCandidateTextColor : style.candidateTextColor
-    let textAttributeString = NSAttributedString(string: (showIndex && !label.isEmpty) ? " \(title)" : title, attributes: [.foregroundColor: textColor, .font: style.candidateTextFont])
+    let textFont = isAutocomplete ? (style.preferredCandidateTextFont ?? style.candidateTextFont) : style.candidateTextFont
+    let textAttributeString = NSAttributedString(string: (showIndex && !label.isEmpty) ? " \(title)" : title, attributes: [.foregroundColor: textColor, .font: textFont])
     result.append(textAttributeString)
 
     if showComment, let comment = subtitle {

@@ -403,15 +403,34 @@ public class KeyboardContext: ObservableObject {
 
   /// 工具栏高度
   var heightOfToolbar: CGFloat {
+    // 豆包风格：工具栏（⌘ 按钮 / 点击说话 / 收起）与候选栏同高，按参考截图量得竖屏约 56pt；横屏收窄到 44pt。
+    if isDoubaoStyleEnabled, deviceType == .phone, !isKeyboardFloating {
+      return interfaceOrientation.isLandscape ? 44 : 56
+    }
     let height = CGFloat(hamsterConfiguration?.toolbar?.heightOfToolbar ?? 55)
     // 液态玻璃（iOS 26 样式）：按真机截图，系统候选区比我们高约 7pt。
     return isLiquidGlassEnabled ? height + 7 : height
   }
 
   /// 液态玻璃（iOS 26 样式）是否开启：开关开且系统 iOS 26+（配置每次弹出前重读）。
+  /// 豆包风格开着时液态玻璃不生效（两者互斥，豆包优先）。
   var isLiquidGlassEnabled: Bool {
     guard #available(iOS 26.0, *) else { return false }
+    if isDoubaoStyleEnabled { return false }
     return hamsterConfiguration?.keyboard?.liquidGlassStyle ?? false
+  }
+
+  /// 豆包风格外观是否开启（默认开；配置每次弹出前重读）。自定义配色方案开着时让位给配色方案。
+  var isDoubaoStyleEnabled: Bool {
+    if hamsterConfiguration?.keyboard?.enableColorSchema ?? false { return false }
+    return hamsterConfiguration?.keyboard?.doubaoStyle ?? true
+  }
+
+  /// 键盘高度比例：0.8–1.3，默认 1.0。乘到每行行高上（横竖屏都生效）。
+  var keyboardHeightScale: CGFloat {
+    let value = hamsterConfiguration?.keyboard?.keyboardHeightScale ?? 1.0
+    guard value.isFinite else { return 1 }
+    return CGFloat(min(max(value, 0.8), 1.3))
   }
 
   /// 工具栏编码区高度
@@ -561,6 +580,8 @@ public class KeyboardContext: ObservableObject {
   var showUppercasedCharacterOnChineseKeyboard: Bool {
     // 液态玻璃（iOS 26 样式）：和系统一样显示小写字母。
     if isLiquidGlassEnabled { return false }
+    // 豆包风格：和豆包一样显示大写字母。
+    if isDoubaoStyleEnabled { return true }
     return hamsterConfiguration?.keyboard?.showUppercasedCharacterOnChineseKeyboard ?? true
   }
 

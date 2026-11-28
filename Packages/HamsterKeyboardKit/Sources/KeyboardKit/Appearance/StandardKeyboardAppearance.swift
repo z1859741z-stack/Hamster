@@ -239,6 +239,35 @@ open class StandardKeyboardAppearance: KeyboardAppearance {
       )
     }
 
+    // 豆包风格候选栏：候选字约 20pt 黑色，首选放大 24pt + 浅色圆角高亮（ref2）。
+    if isDoubaoStyleEnabled {
+      let dark = keyboardContext.hasDarkColorScheme
+      let textColor = DoubaoStyle.candidateText(dark: dark)
+      let configuredSize = keyboardContext.hamsterConfiguration?.toolbar?.candidateWordFontSize
+      // yaml 默认 18 视为“没改过”，用豆包的 20；用户改成别的值时尊重用户。
+      let size: CGFloat = (configuredSize == nil || configuredSize == 18) ? DoubaoStyle.candidateFontSize : CGFloat(configuredSize!)
+      var style = CandidateBarStyle(
+        phoneticTextColor: DoubaoStyle.phoneticText(dark: dark),
+        phoneticTextFont: UIFont.systemFont(ofSize: 13),
+        preferredCandidateTextColor: textColor,
+        preferredCandidateCommentTextColor: textColor,
+        preferredCandidateBackgroundColor: DoubaoStyle.preferredCandidateBackground(dark: dark),
+        preferredCandidateLabelColor: textColor,
+        candidateTextColor: textColor,
+        candidateCommentTextColor: DoubaoStyle.phoneticText(dark: dark),
+        candidateLabelColor: textColor,
+        candidateLabelFont: candidateLabelFont,
+        candidateTextFont: UIFont.systemFont(ofSize: size),
+        candidateCommentFont: candidateCommentFont,
+        toolbarButtonFrontColor: DoubaoStyle.toolbarForeground(dark: dark),
+        toolbarButtonBackgroundColor: .clear,
+        toolbarButtonPressedBackgroundColor: DoubaoStyle.toolbarButtonPressedBackground(dark: dark)
+      )
+      style.preferredCandidateTextFont = UIFont.systemFont(ofSize: size + (DoubaoStyle.preferredCandidateFontSize - DoubaoStyle.candidateFontSize), weight: .medium)
+      style.preferredCandidateCornerRadius = 12
+      return style
+    }
+
     let foregroundColor = hamsterUIColor.standardButtonForeground(for: keyboardContext)
     return CandidateBarStyle(
       phoneticTextColor: foregroundColor,
@@ -286,7 +315,7 @@ open class StandardKeyboardAppearance: KeyboardAppearance {
       font: buttonFont(for: action),
       swipeFont: swipeFont,
       // cornerRadius: buttonCornerRadius(for: action),
-      cornerRadius: isLiquidGlassEnabled ? Self.glassCornerRadius : 5,
+      cornerRadius: isDoubaoStyleEnabled ? keyboardLayoutConfiguration.buttonCornerRadius : (isLiquidGlassEnabled ? Self.glassCornerRadius : 5),
       border: buttonBorderStyle(for: action),
       shadow: buttonShadowStyle(for: action)
     )
@@ -337,7 +366,18 @@ open class StandardKeyboardAppearance: KeyboardAppearance {
    应用于操作和输入呼出的呼出样式。
    */
   open var calloutStyle: KeyboardCalloutStyle {
-    KeyboardCalloutStyle.standard
+    var style = KeyboardCalloutStyle.standard
+    // 豆包风格：按键弹泡与字母键同色、同圆角。
+    if isDoubaoStyleEnabled {
+      let dark = keyboardContext.hasDarkColorScheme
+      style.backgroundColor = dark ? DoubaoStyle.darkKey : DoubaoStyle.lightKey
+      style.textColor = DoubaoStyle.keyForeground(dark: dark)
+      style.buttonCornerRadius = keyboardLayoutConfiguration.buttonCornerRadius
+      style.cornerRadius = 12
+      style.borderColor = UIColor.black.withAlphaComponent(dark ? 0.4 : 0.12)
+      style.shadowColor = UIColor.black.withAlphaComponent(0.15)
+    }
+    return style
   }
 
   /// The style to apply to ``ActionCallout`` views.
@@ -385,6 +425,7 @@ open class StandardKeyboardAppearance: KeyboardAppearance {
   ///
   /// 根据给定 `isPressed` 状态， 用于特定操作的背景颜色。
   open func buttonBackgroundColor(for action: KeyboardAction, isPressed: Bool) -> UIColor {
+    if let color = doubaoButtonBackgroundColor(for: action, isPressed: isPressed) { return color }
     // 液态玻璃（iOS 26 样式）：照 iOS 26 系统键盘真机截图取色（IMG_1218 深色 / IMG_1219 浅色）：
     // 所有按键（字母键和 shift/删除/123/换行/空格）同一个颜色，浅色纯白、深色 #444444；
     // 按下深色 #686868（真机取色），浅色 #C8CBD2（截图里被气泡挡住，估值）。
@@ -406,6 +447,48 @@ open class StandardKeyboardAppearance: KeyboardAppearance {
   /// 液态玻璃（iOS 26 样式）是否开启：开关开且系统 iOS 26+（配置每次弹出前重读）。
   private var isLiquidGlassEnabled: Bool {
     keyboardContext.isLiquidGlassEnabled
+  }
+
+  // MARK: - 豆包风格
+
+  /// 豆包风格是否开启（默认开；自定义配色方案开着时不生效）。
+  private var isDoubaoStyleEnabled: Bool {
+    keyboardContext.isDoubaoStyleEnabled
+  }
+
+  /// 豆包风格下这个按键是不是「白键」（字母、空格、，。、中英切换等），否则是灰色功能键。
+  private func isDoubaoLightKey(_ action: KeyboardAction) -> Bool {
+    switch action {
+    case .space: return true
+    case .shift: return action.isUppercasedShiftAction
+    case .keyboardType(let type):
+      if action.isClassifySymbolicOfLight { return true }
+      // 中/英切换键在 26 键主键盘上是白键（ref4）；数字/符号层上的「返回」类按键仍是灰色功能键。
+      let onPrimary = keyboardContext.keyboardType.isChinesePrimaryKeyboard || keyboardContext.keyboardType.isAlphabetic
+      return onPrimary && (type.isAlphabetic || type.isChinesePrimaryKeyboard)
+    default:
+      break
+    }
+    if action.isSystemAction || action.isSymbolOfDarkAction || action.isCharacterOfDarkAction || action.isCleanSpellingArea {
+      return false
+    }
+    return true
+  }
+
+  /// 豆包风格按键底色（ref4 / ref3 取色，见 DoubaoStyle）。不适用时返回 nil。
+  private func doubaoButtonBackgroundColor(for action: KeyboardAction, isPressed: Bool) -> UIColor? {
+    guard isDoubaoStyleEnabled, action.buttonBackgroundColorForAllStates == nil else { return nil }
+    let dark = keyboardContext.hasDarkColorScheme
+    // 回车：输入框指定了动作（发送/搜索/前往/完成…）时蓝色；普通换行（.return）是灰色「换行」（ref3）。
+    if case .primary(let type) = action, !type.isSystemAction {
+      return isPressed ? DoubaoStyle.returnBluePressed : DoubaoStyle.returnBlue
+    }
+    if isDoubaoLightKey(action) {
+      if dark { return isPressed ? DoubaoStyle.darkKeyPressed : DoubaoStyle.darkKey }
+      return isPressed ? DoubaoStyle.lightKeyPressed : DoubaoStyle.lightKey
+    }
+    if dark { return isPressed ? DoubaoStyle.darkFunctionKeyPressed : DoubaoStyle.darkFunctionKey }
+    return isPressed ? DoubaoStyle.lightFunctionKeyPressed : DoubaoStyle.lightFunctionKey
   }
 
   open func buttonBackgroundColor(for action: KeyboardAction, isPressed: Bool, hamsterColor: HamsterKeyboardColor) -> UIColor {
@@ -433,6 +516,7 @@ open class StandardKeyboardAppearance: KeyboardAppearance {
   ///
   /// 用于特定操作的圆角半径。
   open func buttonCornerRadius(for action: KeyboardAction) -> CGFloat {
+    if isDoubaoStyleEnabled { return keyboardLayoutConfiguration.buttonCornerRadius }
     if isLiquidGlassEnabled { return Self.glassCornerRadius }
     return keyboardLayoutConfiguration.buttonCornerRadius
   }
@@ -491,6 +575,11 @@ open class StandardKeyboardAppearance: KeyboardAppearance {
   open func buttonFontSize(for action: KeyboardAction) -> CGFloat {
     if action.isShortCommand {
       return 16
+    }
+    // 豆包风格：「123」约 17pt，回车文字约 16pt（ref4 量得）。
+    if isDoubaoStyleEnabled, keyboardContext.deviceType == .phone {
+      if case .keyboardType = action { return 17 }
+      if action.isPrimaryAction { return 16 }
     }
     if let override = buttonFontSizePadOverride(for: action) { return override }
     if let override = buttonFontSizeActionOverride(for: action) { return override }
@@ -592,7 +681,11 @@ open class StandardKeyboardAppearance: KeyboardAppearance {
   ///
   /// 用于特定操作的按键前景色。
   open func buttonForegroundColor(for action: KeyboardAction, isPressed: Bool) -> UIColor {
-    action.buttonForegroundColor(for: keyboardContext, isPressed: isPressed)
+    if isDoubaoStyleEnabled, action.buttonForegroundColorForAllStates == nil {
+      if case .primary(let type) = action, !type.isSystemAction { return .white }
+      return DoubaoStyle.keyForeground(dark: keyboardContext.hasDarkColorScheme)
+    }
+    return action.buttonForegroundColor(for: keyboardContext, isPressed: isPressed)
   }
 
   open func buttonForegroundColor(for action: KeyboardAction, isPressed: Bool, hamsterColor: HamsterKeyboardColor) -> UIColor {
@@ -609,6 +702,13 @@ open class StandardKeyboardAppearance: KeyboardAppearance {
   open func buttonShadowStyle(for action: KeyboardAction) -> KeyboardButtonShadowStyle {
     // iOS 26 系统键盘按键没有底部阴影。
     if isLiquidGlassEnabled { return .noShadow }
+    // 豆包风格：底部约 1pt 硬边细阴影（ref4：225 的底色压到约 192）。
+    if isDoubaoStyleEnabled {
+      switch action {
+      case .characterMargin, .emoji, .emojiCategory, .none: return .noShadow
+      default: return KeyboardButtonShadowStyle(color: DoubaoStyle.keyShadow(dark: keyboardContext.hasDarkColorScheme), size: DoubaoStyle.keyShadowOffset)
+      }
+    }
     switch action {
     case .characterMargin: return .noShadow
     case .emoji, .emojiCategory: return .noShadow
